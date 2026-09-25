@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════
    نظام الاغتيال - المتحكم الرئيسي
-   Arabic RTL Tablet App Controller
+   Arabic RTL App Controller (EVORA)
 ═══════════════════════════════════════════════ */
 
 'use strict';
@@ -17,6 +17,51 @@ const fmt = {
   }
 };
 
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Shared labels (priority / contract status)
+const LABELS = {
+  priority: { normal: 'عادي', high: 'عالي', urgent: 'عاجل' },
+  status: {
+    open:      'مفتوح',
+    active:    'قيد التنفيذ',
+    completed: 'مكتمل',
+    failed:    'فاشل',
+    cancelled: 'ملغي',
+    expired:   'منتهي',
+  },
+};
+
+const priorityKey   = (p) => (LABELS.priority[p] ? p : 'normal');
+const priorityLabel = (p) => LABELS.priority[priorityKey(p)];
+
+function priorityTag(p) {
+  const key = priorityKey(p);
+  const variant = key === 'urgent' ? ' tag-danger' : key === 'high' ? ' tag-warning' : '';
+  return `<span class="tag${variant}"><i class="fas fa-bolt"></i> ${LABELS.priority[key]}</span>`;
+}
+
+function statusBadge(s) {
+  const known = LABELS.status[s] !== undefined;
+  const label = known ? LABELS.status[s] : (s || '—');
+  return `<span class="status-badge${known ? ' status-' + s : ''}">${escapeHtml(label)}</span>`;
+}
+
+function emptyState(icon, msg, sub) {
+  return `<div class="empty-state"><i class="${icon}"></i><p>${escapeHtml(msg)}</p>${sub ? `<span>${escapeHtml(sub)}</span>` : ''}</div>`;
+}
+
+function loadingState(msg) {
+  return `<div class="loading-state"><span class="spinner"></span><span>${escapeHtml(msg || 'جارٍ التحميل...')}</span></div>`;
+}
+
 function post(event, data) {
   let resourceName = 'LR_hitmansystem';
   if (typeof window.GetParentResourceName === 'function') {
@@ -25,11 +70,13 @@ function post(event, data) {
       if (res && res !== '') resourceName = res;
     } catch(e) {}
   }
-  return fetch(`https://${resourceName}/${event}`, {
+  const req = fetch(`https://${resourceName}/${event}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data || {})
   });
+  req.catch(() => {}); // fire-and-forget callers: never surface an unhandled rejection
+  return req;
 }
 
 // ─── STATE ──────────────────────────────────
@@ -66,7 +113,7 @@ window.addEventListener('message', (event) => {
       showNotification(msg.type, msg.title, msg.message);
       break;
     case 'ping':
-      post('nuiPong').catch(() => {});
+      post('nuiPong');
       break;
     case 'myContracts':
       if (window.CivilianUI) CivilianUI.handleMyContracts(msg.data);
@@ -85,25 +132,35 @@ window.addEventListener('message', (event) => {
   }
 });
 
+// ─── NOTIFICATIONS ───────────────────────────
+const NOTIFY_ICONS = {
+  info:    'fas fa-circle-info',
+  success: 'fas fa-circle-check',
+  warning: 'fas fa-triangle-exclamation',
+  error:   'fas fa-circle-exclamation',
+};
+
+// The toast already carries a typed icon, so leading emoji from server strings are dropped.
+const stripLeadingEmoji = (s) => String(s ?? '').replace(/^[\p{Extended_Pictographic}️‍\s]+/u, '');
+
 function showNotification(type, title, message) {
   const container = $('notification-container');
   if (!container) return;
 
-  const notif = document.createElement('div');
-  notif.className = `custom-notification ${type || 'info'}`;
-  
-  // Icon mapping
-  let icon = 'fas fa-info-circle';
-  if (type === 'error')   icon = 'fas fa-circle-xmark';
-  if (type === 'success') icon = 'fas fa-circle-check';
-  if (type === 'warning') icon = 'fas fa-triangle-exclamation';
+  const kind  = NOTIFY_ICONS[type] ? type : 'info';
+  const head  = stripLeadingEmoji(title) || (kind === 'error' ? 'خطأ' : 'تنبيه');
+  const body  = stripLeadingEmoji(message);
 
+  const notif = document.createElement('div');
+  notif.className = `custom-notification ${kind}`;
+  // Text is escaped: messages can carry player-written chat content
   notif.innerHTML = `
-    <div class="notif-icon"><i class="${icon}"></i></div>
+    <div class="notif-icon"><i class="${NOTIFY_ICONS[kind]}"></i></div>
     <div class="notif-content">
-      <div class="notif-title">${title || (type === 'error' ? 'خطأ' : 'تنبيه')}</div>
-      <div class="notif-message">${message}</div>
+      <div class="notif-title">${escapeHtml(head)}</div>
+      <div class="notif-message">${escapeHtml(body)}</div>
     </div>
+    <span class="notif-timer"></span>
   `;
 
   container.appendChild(notif);
@@ -116,7 +173,7 @@ function showNotification(type, title, message) {
 }
 
 // ─── UI BACKGROUND (image / GIF) ─────────────
-// Scales ANY image/GIF to fill the tablet screens (cover),
+// Scales ANY image/GIF to fill the windows (cover),
 // with a dim veil so text stays readable.
 function applyBackground(bg, dim) {
   const style = document.documentElement.style;
@@ -138,7 +195,7 @@ function handleOpen(mode, data) {
     applyBackground(data.uiBackground || '', data.uiBackgroundDim);
   }
 
-  // Hide any currently visible tablet (mode switch support)
+  // Hide any currently visible window (mode switch support)
   $('civilian-ui')?.classList.add('hidden');
   $('hitman-ui')?.classList.add('hidden');
 
@@ -154,6 +211,7 @@ function handleOpen(mode, data) {
 }
 
 function handleClose() {
+  EvoraSelect.closeOpen();
   $('civilian-ui')?.classList.add('hidden');
   $('hitman-ui')?.classList.add('hidden');
   document.body.style.pointerEvents = 'none';
@@ -161,9 +219,98 @@ function handleClose() {
   AppState.selectedTarget = null;
 }
 
+// ─── CUSTOM SELECT ──────────────────────────
+// Progressive enhancement of native <select>: the native element stays in
+// the DOM as the source of truth and still fires 'change', so existing
+// listeners keep working unchanged.
+const EvoraSelect = (() => {
+  let current = null;
+
+  function closeOpen() {
+    if (!current) return false;
+    current.classList.remove('open');
+    current = null;
+    return true;
+  }
+
+  function enhance(select) {
+    if (!select || select.dataset.enhanced) return;
+    select.dataset.enhanced = 'true';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'select';
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.classList.add('select-native');
+    select.tabIndex = -1;
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'select-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    if (select.getAttribute('aria-label')) trigger.setAttribute('aria-label', select.getAttribute('aria-label'));
+    trigger.innerHTML = '<span class="select-value"></span><i class="fas fa-chevron-down select-chevron"></i>';
+
+    const menu = document.createElement('div');
+    menu.className = 'select-menu';
+    menu.setAttribute('role', 'listbox');
+
+    Array.from(select.options).forEach((opt) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'select-option';
+      item.dataset.value = opt.value;
+      item.setAttribute('role', 'option');
+      item.innerHTML = `<span>${escapeHtml(opt.text)}</span><i class="fas fa-check"></i>`;
+      item.addEventListener('click', () => {
+        if (select.value !== opt.value) {
+          select.value = opt.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        closeOpen();
+      });
+      menu.appendChild(item);
+    });
+
+    const sync = () => {
+      const opt = select.options[select.selectedIndex];
+      trigger.querySelector('.select-value').textContent = opt ? opt.text : '';
+      menu.querySelectorAll('.select-option').forEach((o) => {
+        const on = o.dataset.value === select.value;
+        o.classList.toggle('selected', on);
+        o.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    };
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasOpen = wrap.classList.contains('open');
+      closeOpen();
+      if (!wasOpen) {
+        wrap.classList.add('open');
+        current = wrap;
+      }
+    });
+
+    select.addEventListener('change', sync);
+    wrap.append(trigger, menu);
+    sync();
+  }
+
+  document.addEventListener('click', (e) => {
+    if (current && !current.contains(e.target)) closeOpen();
+  });
+
+  return { enhance, closeOpen };
+})();
+
+document.querySelectorAll('select.filter-select').forEach(EvoraSelect.enhance);
+
 // ─── CLOSE ON ESCAPE ────────────────────────
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    // An open dropdown closes first
+    if (EvoraSelect.closeOpen()) return;
     // Close the chat modal first if it's open
     if (window.ChatUI && ChatUI.isOpen()) {
       ChatUI.close();

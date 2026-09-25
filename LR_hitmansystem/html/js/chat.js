@@ -11,32 +11,13 @@ window.ChatUI = (() => {
     open:       false,
     contractId: null,
     role:       null,   // 'requester' | 'hitman'
-    restoreUIs: [],     // tablets hidden while chat is open
+    restoreUIs: [],     // windows hidden while chat is open
   };
 
   // ─── HELPERS ────────────────────────────────
   const el = (id) => document.getElementById(id);
   const isOpen = () => state.open;
-
-  function escapeHtml(str) {
-    return String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function statusLabel(s) {
-    const map = {
-      open:      { t: 'مفتوح',       c: 'var(--accent-green)' },
-      active:    { t: 'قيد التنفيذ', c: 'var(--accent-orange)' },
-      completed: { t: 'مكتمل',       c: '#22c55e' },
-      failed:    { t: 'فاشل',        c: 'var(--accent-red)' },
-      cancelled: { t: 'ملغي',        c: 'var(--text-muted)' },
-      expired:   { t: 'منتهي',       c: 'var(--text-muted)' },
-    };
-    return map[s] || { t: s || '—', c: 'var(--text-secondary)' };
-  }
+  const roleName = (role) => role === 'hitman' ? 'القاتل المأجور' : 'صاحب العقد';
 
   function fmtTime(ts) {
     if (!ts) return '—';
@@ -53,11 +34,6 @@ window.ChatUI = (() => {
   }
 
   // ─── RENDER ─────────────────────────────────
-  function priorityLabel(p) {
-    const map = { normal: 'عادي', high: 'عالي', urgent: 'عاجل' };
-    return map[p] || 'عادي';
-  }
-
   function renderSummary(c) {
     el('chat-title').textContent = `العقد #${c.id}`;
 
@@ -65,36 +41,34 @@ window.ChatUI = (() => {
     const partner = state.role === 'hitman'
       ? (c.anonymous == 1 ? 'صاحب العقد (مجهول)' : 'صاحب العقد')
       : 'القاتل المأجور';
-    el('chat-subtitle').textContent = `${partner} • ${fmt.money(c.price)}`;
+    el('chat-subtitle').innerHTML = `${escapeHtml(partner)} • <span dir="ltr">${escapeHtml(fmt.money(c.price))}</span>`;
 
-    const st = statusLabel(c.status);
-    const chips = [
-      `<span class="chat-chip" style="color:${st.c};border-color:${st.c}"><i class="fas fa-circle" style="font-size:7px"></i> ${st.t}</span>`,
-      `<span class="chat-chip"><i class="fas fa-dollar-sign"></i> ${fmt.money(c.price)}</span>`,
-      `<span class="chat-chip"><i class="fas fa-bolt"></i> ${priorityLabel(c.priority)}</span>`,
-      c.notes ? `<span class="chat-chip chat-chip-wide"><i class="fas fa-sticky-note"></i> ${escapeHtml(c.notes)}</span>` : '',
-      `<span class="chat-chip"><i class="fas fa-calendar"></i> ${fmtDate(c.created_at)}</span>`,
-    ];
+    const item = (label, value, cls) =>
+      `<div class="summary-item"><span class="si-label">${label}</span><span class="si-value${cls ? ' ' + cls : ''}">${value}</span></div>`;
 
-    el('chat-summary').innerHTML = chips.filter(Boolean).join('');
+    el('chat-summary').innerHTML = [
+      item('الحالة',   statusBadge(c.status)),
+      item('المكافأة', escapeHtml(fmt.money(c.price)), 'cc-num'),
+      item('الأولوية', priorityTag(c.priority)),
+      item('التاريخ',  escapeHtml(fmtDate(c.created_at))),
+      c.notes ? `<div class="summary-notes"><i class="fas fa-quote-right"></i><span>${escapeHtml(c.notes)}</span></div>` : '',
+    ].join('');
   }
 
   function appendMessage(m) {
     const box = el('chat-messages');
     if (!box) return;
 
-    // Remove loading placeholder
-    const loader = box.querySelector('.chat-loading');
-    if (loader) loader.remove();
+    // Remove loading / empty placeholder
+    box.querySelectorAll('.chat-loading, .chat-empty').forEach((n) => n.remove());
 
     const mine = state.role && m.sender_role === state.role;
     const row = document.createElement('div');
     row.className = `chat-msg-row ${mine ? 'mine' : 'other'}`;
 
-    const who = m.sender_role === 'hitman' ? 'القاتل المأجور' : 'صاحب العقد';
     row.innerHTML = `
       <div class="chat-bubble ${mine ? 'bubble-mine' : 'bubble-other'}">
-        <div class="bubble-meta"><span>${mine ? 'أنت' : who}</span><span>${fmtTime(m.created_at)}</span></div>
+        <div class="bubble-meta"><span>${mine ? 'أنت' : roleName(m.sender_role)}</span><span>${fmtTime(m.created_at)}</span></div>
         <div class="bubble-text">${escapeHtml(m.message)}</div>
       </div>`;
 
@@ -119,7 +93,7 @@ window.ChatUI = (() => {
 
   // ─── OPEN / CLOSE ───────────────────────────
   function open() {
-    // Hide the tablet behind the popup so no dark panel shows through
+    // Hide the window behind the popup so no dark panel shows through
     state.restoreUIs = [];
     ['civilian-ui', 'hitman-ui'].forEach((id) => {
       const e = el(id);
@@ -140,7 +114,7 @@ window.ChatUI = (() => {
     state.contractId = null;
     state.role = null;
 
-    // Bring back the tablet that was visible before opening the chat
+    // Bring back the window that was visible before opening the chat
     (state.restoreUIs || []).forEach((e) => e.classList.remove('hidden'));
     state.restoreUIs = [];
   }
@@ -155,7 +129,7 @@ window.ChatUI = (() => {
     el('chat-subtitle').textContent = 'جارٍ التحميل...';
     el('chat-summary').innerHTML = '';
     el('chat-messages').innerHTML =
-      '<div class="chat-loading"><i class="fas fa-circle-notch fa-spin"></i></div>';
+      '<div class="chat-loading"><span class="spinner"></span><span>جارٍ تحميل المحادثة...</span></div>';
 
     open();
     post('openContractChat', { contractId: cid });
@@ -193,8 +167,7 @@ window.ChatUI = (() => {
     // Called when a message arrives while the chat is closed
     if (!p || !p.message) return;
     if (p.yourRole && p.yourRole === p.message.sender_role) return; // own echo
-    const who = p.message.sender_role === 'hitman' ? 'القاتل المأجور' : 'صاحب العقد';
-    showNotification('info', '💬 رسالة جديدة', `${who}: ${p.message.message}`);
+    showNotification('info', 'رسالة جديدة', `${roleName(p.message.sender_role)}: ${p.message.message}`);
   }
 
   // ─── BIND ───────────────────────────────────

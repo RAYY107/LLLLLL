@@ -38,6 +38,7 @@ window.HitmanUI = (() => {
   // ─── TAB SWITCHING ──────────────────────────
   function switchTab(tabId) {
     state.currentTab = tabId;
+    EvoraSelect.closeOpen();
 
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -51,7 +52,9 @@ window.HitmanUI = (() => {
 
   function updateBadge(id, count) {
     const el = $(id);
-    if (el) el.textContent = count;
+    if (!el) return;
+    el.textContent = count;
+    el.classList.toggle('is-empty', !count);
   }
 
   // ─── RENDER CONTRACTS ───────────────────────
@@ -73,13 +76,14 @@ window.HitmanUI = (() => {
     });
 
     if (filtered.length === 0) {
-      list.innerHTML = emptyState('fas fa-inbox', 'لا توجد عقود متاحة حالياً');
+      list.innerHTML = contracts.length > 0
+        ? emptyState('fas fa-filter', 'لا توجد عقود بهذه الأولوية', 'غيّر عامل التصفية لعرض عقود أخرى')
+        : emptyState('fas fa-inbox', 'لا توجد عقود متاحة حالياً', 'ستظهر العقود الجديدة هنا فور نشرها');
       return;
     }
 
     filtered.forEach((c, i) => {
-      const card = buildContractCard(c, 'available', i);
-      list.appendChild(card);
+      list.appendChild(buildContractCard(c, 'available', i));
     });
   }
 
@@ -89,13 +93,12 @@ window.HitmanUI = (() => {
     list.innerHTML = '';
 
     if (missions.length === 0) {
-      list.innerHTML = emptyState('fas fa-crosshairs', 'لا توجد مهمات نشطة');
+      list.innerHTML = emptyState('fas fa-crosshairs', 'لا توجد مهمات نشطة', 'اقبل عقداً من قائمة العقود المتاحة للبدء');
       return;
     }
 
     missions.forEach((m, i) => {
-      const card = buildContractCard(m, 'active', i);
-      list.appendChild(card);
+      list.appendChild(buildContractCard(m, 'active', i));
     });
   }
 
@@ -110,84 +113,80 @@ window.HitmanUI = (() => {
     }
 
     completed.forEach((c, i) => {
-      const card = buildContractCard(c, 'completed', i);
-      list.appendChild(card);
+      list.appendChild(buildContractCard(c, 'completed', i));
     });
   }
 
   // ─── BUILD CONTRACT CARD ─────────────────────
   function buildContractCard(c, type, index) {
     const card = document.createElement('div');
-    card.className = `contract-card priority-${c.priority || 'normal'}`;
+    card.className = `contract-card priority-${priorityKey(c.priority)}`;
     if (type === 'active')    card.classList.add('active-mission');
     if (type === 'completed') card.classList.add('completed');
-    card.style.animationDelay = (index * 40) + 'ms';
+    card.style.animationDelay = Math.min(index * 40, 400) + 'ms';
 
-    const priorityLabel = getPriorityLabel(c.priority);
     const isAnon = c.anonymous == 1;
+    const tags = [
+      priorityTag(c.priority),
+      isAnon ? '<span class="tag tag-accent"><i class="fas fa-user-secret"></i> مجهول الهوية</span>' : '',
+    ];
 
+    let avatarIcon = 'fa-user-secret';
+    let extraHTML  = '';
     let actionsHTML = '';
+
     if (type === 'available') {
       const remaining = Math.max(0, (c.expires_at || 0) - Math.floor(Date.now() / 1000));
       const hours = Math.floor(remaining / 3600);
       const mins  = Math.floor((remaining % 3600) / 60);
       const timeStr = hours > 0 ? `${hours}س و ${mins}د` : `${mins}د`;
+      tags.push(`<span class="tag${remaining < 3600 ? ' tag-warning' : ''}"><i class="fas fa-hourglass-half"></i> ينتهي خلال ${timeStr}</span>`);
 
       actionsHTML = `
-        <div class="cc-actions">
-          <div class="cc-time-left"><i class="fas fa-clock"></i> ينتهي خلال: ${timeStr}</div>
-          <button class="btn-accept" data-id="${c.id}">
-            <i class="fas fa-check"></i> قبول
-          </button>
-          <button class="btn-reject" data-id="${c.id}">
-            <i class="fas fa-times"></i> رفض
-          </button>
-        </div>`;
+        <button class="btn btn-ghost btn-sm btn-reject" data-id="${Number(c.id)}" title="رفض العقد يلغيه ويعيد المبلغ لصاحبه">
+          <i class="fas fa-xmark"></i> رفض
+        </button>
+        <button class="btn btn-primary btn-sm btn-accept" data-id="${Number(c.id)}">
+          <i class="fas fa-check"></i> قبول
+        </button>`;
     } else if (type === 'active') {
       const elapsed = c.accepted_at ? Math.floor((Date.now()/1000) - c.accepted_at) : 0;
-      actionsHTML = `
-        <div class="cc-actions">
-          <div style="font-size:11px;color:#ef4444;text-align:center;margin-bottom:6px;font-family:var(--font-display);direction:ltr">
-            ${fmt.secs(elapsed)} <i class="fas fa-clock"></i>
-          </div>
-          <button class="btn-chat" data-id="${c.id}">
-            <i class="fas fa-comments"></i> محادثة العقد
-          </button>
-          <button class="btn-abandon" data-id="${c.id}">
-            <i class="fas fa-flag"></i> إلغاء المهمة
-          </button>
+      avatarIcon = 'fa-crosshairs';
+      extraHTML = `
+        <div class="cc-live">
+          <span class="live-dot"></span> جاري تعقب الهدف
+          <span class="cc-elapsed">منذ ${fmt.secs(elapsed)}</span>
         </div>`;
+      actionsHTML = `
+        <button class="btn btn-danger btn-sm btn-abandon" data-id="${Number(c.id)}">
+          <i class="fas fa-flag"></i> إلغاء المهمة
+        </button>
+        <button class="btn btn-secondary btn-sm btn-chat" data-id="${Number(c.id)}">
+          <i class="fas fa-comments"></i> محادثة العقد
+        </button>`;
     } else {
+      avatarIcon = 'fa-check';
+      tags.push('<span class="tag tag-success"><i class="fas fa-check"></i> مكتملة</span>');
+      tags.push(`<span class="tag"><i class="fas fa-calendar"></i> ${escapeHtml(fmt.time(c.completed_at))}</span>`);
       actionsHTML = `
-        <div class="cc-actions">
-          <div style="text-align:center">
-            <div style="color:var(--accent-green);font-size:18px"><i class="fas fa-check-circle"></i></div>
-            <div class="cc-completed-info" style="direction:ltr">${fmt.time(c.completed_at)}</div>
-          </div>
-          <button class="btn-chat" data-id="${c.id}">
-            <i class="fas fa-comments"></i> المحادثة
-          </button>
-        </div>`;
+        <button class="btn btn-secondary btn-sm btn-chat" data-id="${Number(c.id)}">
+          <i class="fas fa-comments"></i> المحادثة
+        </button>`;
     }
 
     card.innerHTML = `
-      <div class="cc-avatar">
-        <i class="fas fa-user-secret"></i>
-      </div>
+      <div class="cc-avatar"><i class="fas ${avatarIcon}"></i></div>
       <div class="cc-info">
-        <div class="cc-target-name">الهدف #${c.target_id}</div>
-        <div class="cc-meta">
-          <span class="cc-tag priority-${c.priority || 'normal'}">${priorityLabel}</span>
-          ${isAnon ? '<span class="cc-tag" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">مجهول الهوية</span>' : ''}
-        </div>
-        ${c.notes ? `<div class="cc-notes"><i class="fas fa-quote-right" style="font-size:9px;margin-left:4px"></i>${escapeHtml(c.notes)}</div>` : ''}
-        ${type === 'active' ? '<div style="font-size:11px;color:var(--accent-red);margin-top:6px;font-family:var(--font-arabic);font-weight:700;"><i class="fas fa-bolt pulse-glow" style="border-radius:50%"></i> جاري تعقب الهدف...</div>' : ''}
+        <div class="cc-title"><span class="cc-title-muted">الهدف</span><span class="cc-num">#${Number(c.target_id)}</span></div>
+        <div class="cc-meta">${tags.join('')}</div>
+        ${c.notes ? `<div class="cc-notes">${escapeHtml(c.notes)}</div>` : ''}
+        ${extraHTML}
       </div>
       <div class="cc-reward">
         <div class="cc-price">${fmt.money(c.price)}</div>
         <div class="cc-price-label">المكافأة</div>
       </div>
-      ${actionsHTML}`;
+      <div class="cc-actions">${actionsHTML}</div>`;
 
     const acceptBtn  = card.querySelector('.btn-accept');
     const rejectBtn  = card.querySelector('.btn-reject');
@@ -204,13 +203,31 @@ window.HitmanUI = (() => {
       acceptBtn.addEventListener('click', () => acceptContract(c.id, acceptBtn));
     }
     if (rejectBtn) {
-      rejectBtn.addEventListener('click', () => rejectContract(c.id, card));
+      rejectBtn.addEventListener('click', () =>
+        confirmThen(rejectBtn, 'تأكيد؟', () => rejectContract(c.id, card)));
     }
     if (abandonBtn) {
-      abandonBtn.addEventListener('click', () => abandonMission(c.id, abandonBtn));
+      abandonBtn.addEventListener('click', () =>
+        confirmThen(abandonBtn, 'تأكيد الإلغاء', () => abandonMission(c.id, abandonBtn)));
     }
 
     return card;
+  }
+
+  // Irreversible actions need a second click within 3s.
+  function confirmThen(btn, label, action) {
+    if (btn.classList.contains('is-armed')) {
+      clearTimeout(btn._disarmTimer);
+      action();
+      return;
+    }
+    const original = btn.innerHTML;
+    btn.classList.add('is-armed');
+    btn.innerHTML = `<i class="fas fa-triangle-exclamation"></i> ${label}`;
+    btn._disarmTimer = setTimeout(() => {
+      btn.classList.remove('is-armed');
+      btn.innerHTML = original;
+    }, 3000);
   }
 
   // ─── CONTRACT ACTIONS ───────────────────────
@@ -221,10 +238,15 @@ window.HitmanUI = (() => {
   }
 
   function rejectContract(contractId, card) {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(10px) scale(0.95)';
-    card.style.transition = 'all 0.3s ease';
-    setTimeout(() => card.remove(), 300);
+    card.classList.add('is-leaving');
+    setTimeout(() => {
+      card.remove();
+      const list = $('contracts-list');
+      if (list && !list.querySelector('.contract-card')) renderContracts(state.data.contracts || []);
+    }, 300);
+
+    // Keep local data in sync so a re-filter doesn't bring the card back
+    state.data.contracts = (state.data.contracts || []).filter(x => x.id !== contractId);
 
     post('rejectContract', { contractId });
 
@@ -233,21 +255,21 @@ window.HitmanUI = (() => {
   }
 
   function abandonMission(contractId, btn) {
-    // We cannot use standard prompt in JS natively in NUI cleanly without blocking,
-    // so we just send the command. If user abandons, they abandon.
-    // Real implementation could use a custom Modal.
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
     post('abandonMission', { contractId });
+    // The server doesn't push fresh data after abandoning; pull it so the card clears
+    setTimeout(() => post('refreshHitmanData'), 500);
   }
 
   function handleAcceptResult(success, message, data) {
     if (success) {
-      showNotification('success', '✅ تم الإنجاز', 'تم قبول المهمة بنجاح! يتم تعقب الهدف الآن.');
+      showNotification('success', 'تم قبول العقد', 'تم قبول المهمة بنجاح! يتم تعقب الهدف الآن.');
       setTimeout(() => post('refreshHitmanData'), 300);
       switchTab('active');
     } else {
       showNotification('error', 'خطأ', message || 'فشل قبول العقد.');
+      renderContracts(state.data.contracts || []); // restore the button spinner
     }
   }
 
@@ -263,17 +285,16 @@ window.HitmanUI = (() => {
     $('stat-rate').textContent     = rate + '%';
 
     if (stats.rank) {
-      const rName = stats.rank;
-      
-      $('rank-name-display').textContent = rName;
-      $('rank-name-display').style.color = stats.rankColor || 'var(--accent-gold)';
-      $('rpc-rank').textContent = rName;
-      $('rpc-rank').style.color = stats.rankColor || 'var(--accent-gold)';
+      const rankColor = stats.rankColor || 'var(--evora-primary)';
+      $('rank-name-display').textContent = stats.rank;
+      $('rpc-rank').textContent = stats.rank;
+      $('sidebar-rank').style.setProperty('--rank-color', rankColor);
+      $('rank-progress-card').style.setProperty('--rank-color', rankColor);
     }
 
     if (stats.rankBonus !== undefined) {
       $('rank-bonus').innerHTML =
-        `المكافأة الإضافية الحالية: <strong dir="ltr">+${Math.round(stats.rankBonus * 100)}%</strong>`;
+        `المكافأة النشطة: <strong dir="ltr">+${Math.round(stats.rankBonus * 100)}%</strong>`;
     }
 
     renderRankProgress(stats.kills || 0, state.data.ranks || []);
@@ -299,7 +320,7 @@ window.HitmanUI = (() => {
                         (nextRank.minKills - currentRank.minKills)) * 100;
       fill.style.width = Math.min(100, progress) + '%';
       $('rpb-current-kills').textContent = kills + ' قتلى';
-      $('rpb-next').textContent = `التالي: ${nextRank.minKills} قتلى`;
+      $('rpb-next').textContent = `التالي: ${nextRank.name} عند ${nextRank.minKills} قتلى`;
     } else {
       fill.style.width = '100%';
       $('rpb-current-kills').textContent = kills + ' قتلى';
@@ -311,40 +332,33 @@ window.HitmanUI = (() => {
     const ladder = $('rank-ladder');
     if (!ladder) return;
 
-    ladder.innerHTML = `<div class="rank-ladder-title">سلم الرتب</div>`;
+    ladder.innerHTML = `
+      <div class="rank-ladder-head">
+        <span>سلم الرتب</span>
+        <span>القتلى المطلوبة</span>
+        <span>المكافأة</span>
+      </div>`;
 
-    ranks.forEach(r => {
-      const isCurrent = kills >= r.minKills &&
-        (ranks[ranks.indexOf(r) + 1] == null || kills < ranks[ranks.indexOf(r) + 1].minKills);
+    ranks.forEach((r, i) => {
+      const next      = ranks[i + 1];
+      const reached   = kills >= r.minKills;
+      const isCurrent = reached && (next == null || kills < next.minKills);
 
       const row = document.createElement('div');
-      row.className = 'rank-row' + (isCurrent ? ' current-rank' : '');
+      row.className = 'rank-row ' + (isCurrent ? 'is-current' : reached ? 'is-reached' : 'is-locked');
+      if (r.color) row.style.setProperty('--rank-color', r.color);
 
       row.innerHTML = `
-        <div class="rank-dot" style="background:${r.color}"></div>
-        <div class="rank-row-name" style="color:${isCurrent ? r.color : 'var(--text-secondary)'}">${r.name}</div>
-        <div class="rank-row-kills"><span dir="ltr">+${r.minKills}</span> قتلى</div>
-        <div class="rank-row-bonus" dir="ltr">+${Math.round(r.bonus * 100)}%</div>`;
+        <div class="rank-row-name">
+          <span class="rank-dot"></span>
+          <span>${escapeHtml(r.name)}</span>
+          ${isCurrent ? '<span class="tag tag-accent">الحالية</span>' : ''}
+        </div>
+        <div class="rank-row-kills">${Number(r.minKills)}</div>
+        <div class="rank-row-bonus"><span dir="ltr">+${Math.round(r.bonus * 100)}%</span></div>`;
 
       ladder.appendChild(row);
     });
-  }
-
-  // ─── HELPERS ────────────────────────────────
-  function emptyState(icon, msg) {
-    return `<div class="empty-state"><i class="${icon}"></i><p>${msg}</p></div>`;
-  }
-
-  function getPriorityLabel(p) {
-    const map = { normal: 'عادي', high: 'عالي', urgent: 'عاجل' };
-    return map[p] || 'عادي';
-  }
-
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
   }
 
   // ─── BIND EVENTS ────────────────────────────

@@ -15,8 +15,9 @@ window.CivilianUI = (() => {
   const notesIn    = () => $('contract-notes');
   const anonToggle = () => $('anon-toggle');
   const submitBtn  = () => $('civ-submit');
-  const feedback   = () => $('civ-feedback');
   const cooldownEl = () => $('cooldown-notice');
+
+  const SUBMIT_HTML = '<i class="fas fa-paper-plane"></i><span>نشر العقد</span>';
 
   let state = {
     players:   [],
@@ -24,21 +25,29 @@ window.CivilianUI = (() => {
     selected:  null,
     priority:  'normal',
     cooldownTimer: null,
+    previewToken: 0,   // ignores mugshot responses for a superseded selection
   };
 
   // ─── INIT ───────────────────────────────────
   function init(data) {
     state.config  = data;
     state.players = data.players || [];
-    state.selected = null;
-    AppState.selectedTarget = null;
+    resetPreview();
 
     applyConfig(data);
-    renderPlayers(state.players);
+    $('player-count').textContent = state.players.length;
+    filterPlayers(searchIn().value || '');
+
+    // An ID kept from the last session gets a fresh preview (headshots are released on close)
+    const keptId = parseInt(targetIdIn().value);
+    const kept = isNaN(keptId) ? null : state.players.find(x => x.serverId === keptId || x.userId === keptId);
+    if (kept) selectPlayer(kept);
+
     updateCostBreakdown();
     bindEvents();
     switchCivTab('new');
 
+    clearTimeout(state.cooldownTimer); // a timer from a previous open would tick twice as fast
     if (data.cooldown > 0) {
       showCooldown(data.cooldown);
     } else {
@@ -48,10 +57,12 @@ window.CivilianUI = (() => {
   }
 
   function applyConfig(cfg) {
-    $('price-limits').textContent =
-      `الحد الأدنى: ${fmt.money(cfg.minPrice)} — الحد الأقصى: ${fmt.money(cfg.maxPrice)}`;
+    $('price-limits').innerHTML =
+      `الحد الأدنى: <span dir="ltr">${fmt.money(cfg.minPrice)}</span> — الحد الأقصى: <span dir="ltr">${fmt.money(cfg.maxPrice)}</span>`;
     priceIn().min  = cfg.minPrice;
     priceIn().max  = cfg.maxPrice;
+
+    $('cost-fee-label').innerHTML = `رسوم الخدمة (<span dir="ltr">${Math.round(feeRate() * 100)}%</span>)`;
 
     const anonGroup = $('anon-group');
     if (!cfg.anonymityEnabled) {
@@ -64,20 +75,24 @@ window.CivilianUI = (() => {
     const prioritySection = $('priority-selector');
     if (cfg.priorities && cfg.priorities.length) {
       prioritySection.innerHTML = '';
-      const arabicLabels = { 'normal': 'عادي', 'high': 'عالي', 'urgent': 'عاجل' };
-      
       cfg.priorities.forEach(p => {
         const btn = document.createElement('button');
-        btn.className = 'priority-btn' + (p.id === 'normal' ? ' active' : '');
+        btn.className = 'segmented-btn priority-btn' + (p.id === 'normal' ? ' active' : '');
         btn.dataset.priority = p.id;
-        const lbl = arabicLabels[p.id] || p.label;
-        btn.textContent = p.multiplier > 1
-          ? `${lbl} +${Math.round((p.multiplier - 1) * 100)}%`
-          : lbl;
+        const lbl = LABELS.priority[p.id] || p.label;
+        btn.innerHTML = `<span class="prio-dot"></span><span>${escapeHtml(lbl)}</span>` +
+          (p.multiplier > 1 ? `<span class="seg-meta" dir="ltr">+${Math.round((p.multiplier - 1) * 100)}%</span>` : '');
         prioritySection.appendChild(btn);
       });
-      bindPriorityButtons();
     }
+
+    // Keep state in sync with the highlighted button (fallback: first option)
+    const active = prioritySection.querySelector('.priority-btn.active') || prioritySection.querySelector('.priority-btn');
+    if (active) setPriority(active.dataset.priority);
+  }
+
+  function feeRate() {
+    return typeof state.config.fee === 'number' ? state.config.fee : 0.1;
   }
 
   // ─── RENDER PLAYER GRID ─────────────────────
@@ -86,30 +101,36 @@ window.CivilianUI = (() => {
     grid.innerHTML = '';
 
     if (!players || players.length === 0) {
-      grid.innerHTML = `
-        <div class="loading-state">
-          <i class="fas fa-user-slash" style="font-size:32px;opacity:0.3"></i>
-          <span>لا يوجد لاعبين متصلين</span>
-        </div>`;
+      const searching = (searchIn().value || '').trim() !== '';
+      grid.innerHTML = searching
+        ? emptyState('fas fa-magnifying-glass', 'لا توجد نتائج مطابقة', 'جرّب اسماً أو رقماً آخر')
+        : emptyState('fas fa-user-slash', 'لا يوجد لاعبين متصلين');
       return;
     }
 
     players.forEach((p, i) => {
       const displayId = p.userId || p.serverId;
-      const card = document.createElement('div');
+      const name = p.name || 'غير معروف';
+      const initial = (Array.from(name.trim())[0] || '?').toUpperCase();
+
+      const card = document.createElement('button');
+      card.type = 'button';
       card.className = 'player-card' + (p.isSelf ? ' is-self' : '');
-      card.style.animationDelay = (i * 30) + 'ms';
+      card.style.animationDelay = Math.min(i * 20, 300) + 'ms';
       card.dataset.id   = displayId;
-      card.dataset.name = p.name || 'غير معروف';
+      card.dataset.name = name;
+      card.dataset.sid  = p.serverId; // stable server-id for highlight matching
+      if (state.selected && parseInt(state.selected.serverId) === parseInt(p.serverId)) {
+        card.classList.add('selected');
+      }
 
       card.innerHTML = `
-        <div class="pc-avatar">
-          <i class="fas fa-user"></i>
-        </div>
-        <div class="pc-name">${escapeHtml(p.name || 'غير معروف')}</div>
-        <div class="pc-id">ID: ${displayId}</div>`;
-
-      card.dataset.sid = p.serverId; // stable server-id for highlight matching
+        <span class="pc-avatar">${escapeHtml(initial)}</span>
+        <span class="pc-info">
+          <span class="pc-name">${escapeHtml(name)}</span>
+          <span class="pc-id"><span dir="ltr">ID ${escapeHtml(displayId)}</span>${p.isSelf ? '<span class="pc-self">أنت</span>' : ''}</span>
+        </span>
+        <i class="fas fa-circle-check pc-check"></i>`;
 
       card.addEventListener('click', () => selectPlayer(p));
       grid.appendChild(card);
@@ -137,81 +158,92 @@ window.CivilianUI = (() => {
     const displayId = p.userId || p.serverId;
     targetIdIn().value = displayId;
 
-    const preview = $('selected-target');
-    preview.classList.remove('hidden');
-    $('target-name-display').textContent = escapeHtml(p.name || 'غير معروف');
+    $('selected-target').classList.remove('hidden');
+    $('target-name-display').textContent = p.name || 'غير معروف';
     $('target-id-display').textContent   = displayId;
 
     // Trigger Mugshot Preview
     const mugshotImg = $('ped-mugshot-img');
     const fallback   = $('ped-fallback-icon');
-    
+
     mugshotImg.classList.add('hidden');
     fallback.classList.remove('hidden');
 
+    const token = ++state.previewToken;
     post('startPedPreview', { serverId: p.serverId }).then(r => r.json()).then(data => {
+      if (token !== state.previewToken) return; // a newer selection or a clear happened
       if (data && data.mugshot) {
         mugshotImg.src = data.mugshot;
         mugshotImg.classList.remove('hidden');
         fallback.classList.add('hidden');
       }
+    }).catch(() => {});
+
+    document.querySelectorAll('.player-card').forEach(c => {
+      const match = parseInt(c.dataset.sid) === parseInt(p.serverId);
+      c.classList.toggle('selected', match);
+      if (match) c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
+
+    updateCostBreakdown();
+  }
+
+  // Visual reset of the target preview (no NUI callback).
+  function resetPreview() {
+    state.selected = null;
+    AppState.selectedTarget = null;
+    state.previewToken++;
+    $('selected-target').classList.add('hidden');
+
+    // Clear Mugshot
+    const mugshotImg = $('ped-mugshot-img');
+    mugshotImg.removeAttribute('src');
+    mugshotImg.classList.add('hidden');
+    $('ped-fallback-icon').classList.remove('hidden');
 
     document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
-    document.querySelectorAll('.player-card').forEach(c => {
-      if (parseInt(c.dataset.sid) === parseInt(p.serverId)) {
-        c.classList.add('selected');
-        c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    });
+  }
 
+  // Hides the preview; keepInput leaves a manually typed ID in place.
+  function deselect(keepInput) {
+    resetPreview();
+    if (!keepInput) targetIdIn().value = '';
+    post('stopPedPreview');
     updateCostBreakdown();
   }
 
   function clearTarget() {
-    state.selected = null;
-    AppState.selectedTarget = null;
-    targetIdIn().value = '';
-    $('selected-target').classList.add('hidden');
-    
-    // Clear Mugshot
-    const mugshotImg = $('ped-mugshot-img');
-    mugshotImg.src = '';
-    mugshotImg.classList.add('hidden');
-    $('ped-fallback-icon').classList.remove('hidden');
-
-    post('stopPedPreview');
-
-    document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
-    updateCostBreakdown();
+    deselect(false);
   }
 
   // ─── COST BREAKDOWN ─────────────────────────
+  // Mirrors the server: the requester pays price (+ anonymity fee); the
+  // service fee comes out of the hitman's reward, which the priority multiplies.
   function updateCostBreakdown() {
-    const price     = parseFloat(priceIn().value) || 0;
-    const anon      = anonToggle()?.checked && state.config.anonymityEnabled;
-    const anonFee   = anon ? (state.config.anonymityFee || 0) : 0;
-    const base      = price;
-    const subtotal  = base + anonFee;
-    const fee       = Math.floor(subtotal * (state.config.fee || 0.1));
-    const total     = subtotal;
-    const reward    = Math.floor((subtotal - fee) * getPriorityMultiplier());
+    const price    = parseFloat(priceIn().value) || 0;
+    const anon     = anonToggle()?.checked && state.config.anonymityEnabled;
+    const anonFee  = anon ? (state.config.anonymityFee || 0) : 0;
+    const total    = price + anonFee;
+    const fee      = Math.floor(total * feeRate());
+    const mult     = getPriorityMultiplier();
+    const reward   = Math.floor((total - fee) * mult);
+    const bonus    = reward - (total - fee);
 
-    $('cost-base').textContent   = fmt.money(base);
-    // Hide/show anon cost row safely
-    const anonRow = $('anon-cost-row');
-    if (anonRow) {
-      if (anon) {
-        anonRow.classList.remove('hidden');
-        $('cost-anon').textContent = fmt.money(anonFee);
-      } else {
-        anonRow.classList.add('hidden');
-        $('cost-anon').textContent = '$0';
-      }
+    $('cost-base').textContent = fmt.money(price);
+
+    $('anon-cost-row').classList.toggle('hidden', !anon);
+    $('cost-anon').textContent = fmt.money(anonFee);
+
+    $('cost-total').textContent  = fmt.money(total);
+    $('cost-fee').textContent    = (fee > 0 ? '−' : '') + fmt.money(fee);
+
+    const prioRow = $('priority-cost-row');
+    prioRow.classList.toggle('hidden', !(mult > 1));
+    if (mult > 1) {
+      $('cost-priority-label').innerHTML = `زيادة الأولوية (<span dir="ltr">+${Math.round((mult - 1) * 100)}%</span>)`;
+      $('cost-priority').textContent = '+' + fmt.money(bonus);
     }
 
-    $('cost-fee').textContent    = fmt.money(fee);
-    $('cost-total').textContent  = fmt.money(total);
     $('cost-reward').textContent = fmt.money(reward);
   }
 
@@ -219,6 +251,11 @@ window.CivilianUI = (() => {
     const priorities = state.config.priorities || [];
     const p = priorities.find(x => x.id === state.priority);
     return p ? p.multiplier : 1.0;
+  }
+
+  function setPriority(id) {
+    state.priority = id;
+    document.querySelectorAll('.priority-btn').forEach(b => b.classList.toggle('active', b.dataset.priority === id));
   }
 
   // ─── COOLDOWN DISPLAY ───────────────────────
@@ -234,7 +271,7 @@ window.CivilianUI = (() => {
         submitBtn().disabled = false;
         return;
       }
-      $('cooldown-text').textContent = `الانتظار: ${fmt.secs(remaining)}`;
+      $('cooldown-text').textContent = `يمكنك نشر عقد جديد بعد ${fmt.secs(remaining)}`;
       remaining--;
       state.cooldownTimer = setTimeout(tick, 1000);
     };
@@ -289,7 +326,7 @@ window.CivilianUI = (() => {
     state.isSubmitting = false;
     const btn = submitBtn();
     btn.disabled = false;
-    btn.innerHTML = '<i class="fas fa-paper-plane"></i><span>نشر العقد</span>';
+    btn.innerHTML = SUBMIT_HTML;
 
     showFeedback(message, success ? 'success' : 'error');
 
@@ -303,6 +340,11 @@ window.CivilianUI = (() => {
   }
 
   // ─── MY CONTRACTS TAB ───────────────────────
+  function requestMyContracts() {
+    $('my-contracts-list').innerHTML = loadingState('جارٍ تحميل عقودك...');
+    post('requestMyContracts');
+  }
+
   function switchCivTab(tab) {
     document.querySelectorAll('.civ-tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.civ-view').forEach(v => v.classList.remove('active'));
@@ -313,20 +355,8 @@ window.CivilianUI = (() => {
     if (view) view.classList.add('active');
 
     if (tab === 'my') {
-      post('requestMyContracts');
+      requestMyContracts();
     }
-  }
-
-  function myStatusBadge(s) {
-    const map = {
-      open:      { t: 'مفتوح',       c: 'var(--accent-green)' },
-      active:    { t: 'قيد التنفيذ', c: 'var(--accent-orange)' },
-      completed: { t: 'مكتمل',       c: '#22c55e' },
-      failed:    { t: 'فاشل',        c: 'var(--accent-red)' },
-      cancelled: { t: 'ملغي',        c: 'var(--text-muted)' },
-      expired:   { t: 'منتهي',       c: 'var(--text-muted)' },
-    };
-    return map[s] || { t: s || '—', c: 'var(--text-secondary)' };
   }
 
   function timeAgo(ts) {
@@ -344,28 +374,24 @@ window.CivilianUI = (() => {
     list.innerHTML = '';
 
     if (!contracts || contracts.length === 0) {
-      list.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-inbox"></i>
-          <p>لا توجد عقود — انشر عقودك أولاً</p>
-        </div>`;
+      list.innerHTML = emptyState('fas fa-inbox', 'لا توجد عقود — انشر عقودك أولاً');
       return;
     }
 
     contracts.forEach((c, i) => {
-      const st = myStatusBadge(c.status);
       const card = document.createElement('div');
-      card.className = `contract-card mc-card priority-${c.priority || 'normal'}`;
-      card.style.animationDelay = (i * 40) + 'ms';
+      card.className = `contract-card mc-card priority-${priorityKey(c.priority)}`;
+      card.style.animationDelay = Math.min(i * 40, 400) + 'ms';
 
       card.innerHTML = `
         <div class="cc-avatar"><i class="fas fa-user-secret"></i></div>
         <div class="cc-info">
-          <div class="cc-target-name">الهدف: ${escapeHtml(c.target_name)}</div>
+          <div class="cc-title"><span class="cc-title-muted">الهدف</span><span class="cc-num">${escapeHtml(c.target_name)}</span></div>
           <div class="cc-meta">
-            <span class="cc-tag" style="color:${st.c};border-color:${st.c}">${st.t}</span>
-            ${c.anonymous == 1 ? '<span class="cc-tag" style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)">مجهول</span>' : ''}
-            <span class="cc-tag">${timeAgo(c.created_at)}</span>
+            ${statusBadge(c.status)}
+            ${priorityTag(c.priority)}
+            ${c.anonymous == 1 ? '<span class="tag tag-accent"><i class="fas fa-user-secret"></i> مجهول</span>' : ''}
+            <span class="tag"><i class="fas fa-clock"></i> ${timeAgo(c.created_at)}</span>
           </div>
         </div>
         <div class="cc-reward">
@@ -373,7 +399,7 @@ window.CivilianUI = (() => {
           <div class="cc-price-label">المكافأة</div>
         </div>
         <div class="cc-actions">
-          <button class="btn-chat" data-id="${c.id}">
+          <button class="btn btn-secondary btn-sm btn-chat" data-id="${Number(c.id)}">
             <i class="fas fa-comments"></i> التفاصيل والمحادثة
           </button>
         </div>`;
@@ -406,10 +432,7 @@ window.CivilianUI = (() => {
       btn.addEventListener('click', () => switchCivTab(btn.dataset.civtab));
     });
 
-    const myRefresh = $('my-contracts-refresh');
-    if (myRefresh) {
-      myRefresh.addEventListener('click', () => post('requestMyContracts'));
-    }
+    $('my-contracts-refresh').addEventListener('click', requestMyContracts);
 
     $('clear-target').addEventListener('click', clearTarget);
     searchIn().addEventListener('input', (e) => filterPlayers(e.target.value));
@@ -423,33 +446,22 @@ window.CivilianUI = (() => {
 
     targetIdIn().addEventListener('input', (e) => {
       const id = parseInt(e.target.value);
-      if (!isNaN(id)) {
-        const p = state.players.find(x => x.serverId === id || x.userId === id);
-        if (p) selectPlayer(p);
+      const p = isNaN(id) ? null : state.players.find(x => x.serverId === id || x.userId === id);
+      if (p) {
+        selectPlayer(p);
+      } else if (state.selected) {
+        deselect(true); // typed ID no longer matches the previewed player
       }
       updateCostBreakdown();
     });
 
-    bindPriorityButtons();
-  }
-
-  function bindPriorityButtons() {
-    document.querySelectorAll('.priority-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.priority = btn.dataset.priority;
-        updateCostBreakdown();
-      });
+    // Delegated: priority buttons are rebuilt from config on every open
+    $('priority-selector').addEventListener('click', (e) => {
+      const btn = e.target.closest('.priority-btn');
+      if (!btn) return;
+      setPriority(btn.dataset.priority);
+      updateCostBreakdown();
     });
-  }
-
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 
   return { init, handleContractResult, handleMyContracts, switchCivTab };
