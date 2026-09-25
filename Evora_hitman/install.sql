@@ -1,5 +1,5 @@
 -- ============================================================
---  LR_hitmansystem - FRESH DATABASE INSTALL
+--  Evora_hitman - FRESH DATABASE INSTALL
 --  -----------------------------------------------------------
 --  Resets ALL hitman system tables and creates them empty.
 --

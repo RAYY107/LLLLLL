@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'LR @qwxlr'
-description 'LR_hitmansystem - Premium Hitman System'
+description 'Evora_hitman - Premium Hitman System'
 version '1.1.0'
 
 dependencies {

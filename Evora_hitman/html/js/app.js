@@ -63,7 +63,7 @@ function loadingState(msg) {
 }
 
 function post(event, data) {
-  let resourceName = 'LR_hitmansystem';
+  let resourceName = 'Evora_hitman';
   if (typeof window.GetParentResourceName === 'function') {
     try {
       const res = window.GetParentResourceName();

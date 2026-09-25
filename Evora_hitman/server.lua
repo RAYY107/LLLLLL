@@ -1,7 +1,18 @@
 -- ============================================================
---  HITMAN SYSTEM - Server Side
+--  Evora_hitman - Server Side
 --  Universal vRP integration (works on any vRP FiveM server)
 -- ============================================================
+
+-- ─── STARTUP BANNER ──────────────────────────────────────
+print([[
+
+^6    ███████╗██╗   ██╗ ██████╗ ██████╗  █████╗
+^6    ██╔════╝██║   ██║██╔═══██╗██╔══██╗██╔══██╗
+^6    █████╗  ██║   ██║██║   ██║██████╔╝███████║
+^6    ██╔══╝  ╚██╗ ██╔╝██║   ██║██╔══██╗██╔══██║
+^6    ███████╗ ╚████╔╝ ╚██████╔╝██║  ██║██║  ██║
+^6    ╚══════╝  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝^7     — Made by LR
+]])
 
 -- ─── UNIVERSAL vRP PROXY LOADER ──────────────────────────
 -- Auto-detects the vRP variant running on the server:
@@ -21,9 +32,9 @@ elseif module then
 end
 
 if not _Proxy then
-    print("^1[LR_hitmansystem] FATAL: Could not find vRP Proxy.^7")
-    print("^1[LR_hitmansystem] Make sure '@vrp/lib/utils.lua' is in shared_scripts of fxmanifest.lua^7")
-    print("^1[LR_hitmansystem] and that the 'vrp' resource is started BEFORE hitman_system.^7")
+    print("^1[Evora_hitman] FATAL: Could not find vRP Proxy.^7")
+    print("^1[Evora_hitman] Make sure '@vrp/lib/utils.lua' is in shared_scripts of fxmanifest.lua^7")
+    print("^1[Evora_hitman] and that the 'vrp' resource is started BEFORE Evora_hitman.^7")
     return -- stop loading the rest of the file
 end
 
@@ -68,7 +79,7 @@ local sessionRejections = {} -- user_id -> { contractId -> true }
 -- ─── UTILITY ─────────────────────────────────────────────
 local function debugLog(msg)
     if Config.Debug then
-        print("^3[LR_hitmansystem/Server] ^7" .. tostring(msg))
+        print("^3[Evora_hitman/Server] ^7" .. tostring(msg))
     end
 end
 
@@ -127,11 +138,11 @@ local warnedWalletFallback = false
 local function warnWalletFallback()
     if not warnedWalletFallback then
         warnedWalletFallback = true
-        print("^1[LR_hitmansystem] =============================================^7")
-        print("^1[LR_hitmansystem] WARNING: vRP wallet API not reachable (tryPayment/getMoney).^7")
-        print("^1[LR_hitmansystem] Falling back to the INTERNAL hitman_wallets table.^7")
-        print("^1[LR_hitmansystem] This money is FAKE and separate from your server economy!^7")
-        print("^1[LR_hitmansystem] =============================================^7")
+        print("^1[Evora_hitman] =============================================^7")
+        print("^1[Evora_hitman] WARNING: vRP wallet API not reachable (tryPayment/getMoney).^7")
+        print("^1[Evora_hitman] Falling back to the INTERNAL hitman_wallets table.^7")
+        print("^1[Evora_hitman] This money is FAKE and separate from your server economy!^7")
+        print("^1[Evora_hitman] =============================================^7")
     end
 end
 
@@ -247,7 +258,7 @@ Citizen.CreateThread(function()
     end
 
     if not MySQL or not MySQL.Sync or not MySQL.Sync.execute then
-        print("^1[LR_hitmansystem]^7 ERROR: oxmysql not found after 30s. Install & start oxmysql before this resource.")
+        print("^1[Evora_hitman]^7 ERROR: oxmysql not found after 30s. Install & start oxmysql before this resource.")
         return
     end
 
@@ -1404,7 +1415,7 @@ if Config.RegisterInMainMenu then
         for _, mName in ipairs(menuNames) do
             local res = vRPcall(vRP.registerMenuBuilder, mName, builder)
             if res ~= nil then
-                debugLog("Registered hitman_system into vRP '" .. tostring(mName) .. "' menu builder.")
+                debugLog("Registered Evora_hitman into vRP '" .. tostring(mName) .. "' menu builder.")
             end
         end
     end
@@ -1425,13 +1436,13 @@ end
 
 RegisterCommand('hitman_blacklist', function(source, args, rawCommand)
     if not isAdminSender(source) then
-        if source and source ~= 0 then print("[Hitman] Player " .. source .. " tried /hitman_blacklist without permission.") end
+        if source and source ~= 0 then print("[Evora_hitman] Player " .. source .. " tried /hitman_blacklist without permission.") end
         return
     end
     local targetId = tonumber(args[1])
     local reason   = args[2] or "No reason"
     if not targetId then
-        print("[Hitman] Usage: /hitman_blacklist <userId> [reason]")
+        print("[Evora_hitman] Usage: /hitman_blacklist <userId> [reason]")
         return
     end
 
@@ -1444,7 +1455,7 @@ RegisterCommand('hitman_blacklist', function(source, args, rawCommand)
         ['@r']   = reason,
         ['@ts']  = getTimestamp()
     }, function()
-        print("[Hitman] User " .. targetId .. " blacklisted.")
+        print("[Evora_hitman] User " .. targetId .. " blacklisted.")
     end)
 end, false)
 
@@ -1456,7 +1467,7 @@ RegisterCommand('hitman_unblacklist', function(source, args, rawCommand)
         "DELETE FROM hitman_blacklist WHERE user_id = @uid",
         { ['@uid'] = targetId },
         function()
-            print("[Hitman] User " .. targetId .. " removed from blacklist.")
+            print("[Evora_hitman] User " .. targetId .. " removed from blacklist.")
         end
     )
 end, false)

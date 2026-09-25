@@ -1,5 +1,5 @@
 -- ============================================================
---  HITMAN SYSTEM - Client Side
+--  Evora_hitman - Client Side
 --  Standalone (no vRP client dependency)
 -- ============================================================
 
@@ -13,7 +13,7 @@ local nuiLastPong    = 0     -- heartbeat timestamp (watchdog)
 -- ─── UTILITY ─────────────────────────────────────────────
 local function debugLog(msg)
     if Config.Debug then
-        print("^3[LR_hitmansystem] ^7" .. tostring(msg))
+        print("^3[Evora_hitman] ^7" .. tostring(msg))
     end
 end
 
