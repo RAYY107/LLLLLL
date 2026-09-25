@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>نظام الاغتيال</title>
+<link rel="stylesheet" href="css/style.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     واجهة المدني - طلب اغتيال
+═══════════════════════════════════════════════ -->
+<div id="civilian-ui" class="ui-overlay hidden">
+  <div class="modal-backdrop"></div>
+  <div class="tablet-frame civilian-tablet slide-up">
+    <div class="tablet-bezel">
+      <div class="tablet-camera"></div>
+    </div>
+    <div class="tablet-screen">
+
+      <!-- Header -->
+      <div class="modal-header">
+        <div class="header-icon pulse-glow"><i class="fas fa-crosshairs"></i></div>
+        <div class="header-text">
+          <h1>طلب اغتيال</h1>
+          <p>انشر عقداً على هدف</p>
+        </div>
+        <button class="close-btn" id="civ-close"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Civilian Tabs -->
+        <div class="civ-tabs">
+          <button class="civ-tab-btn active" data-civtab="new"><i class="fas fa-file-contract"></i> طلب جديد</button>
+          <button class="civ-tab-btn" data-civtab="my"><i class="fas fa-comments"></i> عقودي</button>
+        </div>
+
+        <!-- NEW CONTRACT VIEW -->
+        <div id="civ-view-new" class="civ-view active">
+        <div class="civilian-grid">
+
+          <!-- RIGHT: Player Selection (RTL = right) -->
+          <div class="player-panel">
+            <div class="panel-title"><i class="fas fa-users"></i> اللاعبون المتصلون</div>
+            <div class="search-bar">
+              <i class="fas fa-search"></i>
+              <input type="text" id="player-search" placeholder="ابحث عن لاعب..."/>
+            </div>
+            <div id="player-grid" class="player-grid">
+              <!-- Players injected here by JS -->
+            </div>
+
+            <!-- Selected Target Profile Card (Moved Here) -->
+            <div id="selected-target" class="target-profile-card hidden">
+              <div class="profile-card-header">
+                <button class="clear-target-btn" id="clear-target"><i class="fas fa-times"></i></button>
+                <div class="panel-title"><i class="fas fa-user-check"></i> معاينة الهدف</div>
+              </div>
+              <div class="profile-card-body">
+                <div class="target-avatar-container">
+                  <img id="ped-mugshot-img" class="ped-mugshot hidden" src="">
+                  <div id="ped-fallback-icon" class="target-avatar"><i class="fas fa-user-secret"></i></div>
+                </div>
+                <div class="target-info">
+                  <div class="target-name" id="target-name-display">-</div>
+                  <div class="target-id-display">الرقم: <span id="target-id-display">-</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LEFT: Contract Form -->
+          <div class="contract-panel">
+            <div class="panel-title"><i class="fas fa-file-contract"></i> تفاصيل العقد</div>
+
+            <!-- Form Fields (Target Preview Moved) -->
+            <div class="form-group">
+              <label><i class="fas fa-id-badge"></i> رقم اللاعب المستهدف</label>
+              <input type="number" id="target-id-input" placeholder="أدخل رقم اللاعب..." min="1"/>
+            </div>
+
+            <div class="form-group">
+              <label><i class="fas fa-dollar-sign"></i> سعر العقد</label>
+              <div class="price-input-wrap">
+                <span class="currency-symbol">$</span>
+                <input type="number" id="contract-price" placeholder="5000" min="5000"/>
+              </div>
+              <div class="price-limits" id="price-limits">الحد الأدنى: $5,000 — الحد الأقصى: $500,000</div>
+            </div>
+
+            <div class="form-group">
+              <label><i class="fas fa-exclamation-triangle"></i> مستوى الأولوية</label>
+              <div class="priority-selector" id="priority-selector">
+                <button class="priority-btn active" data-priority="normal">عادي</button>
+                <button class="priority-btn" data-priority="high">عالي +25%</button>
+                <button class="priority-btn" data-priority="urgent">عاجل +50%</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label><i class="fas fa-sticky-note"></i> ملاحظات (اختياري)</label>
+              <textarea id="contract-notes" placeholder="أي تفاصيل للقاتل..."></textarea>
+            </div>
+
+            <div class="form-group toggle-group" id="anon-group">
+              <label><i class="fas fa-user-slash"></i> إخفاء الهوية</label>
+              <div class="toggle-wrap">
+                <label class="toggle">
+                  <input type="checkbox" id="anon-toggle"/>
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label" id="anon-fee-label">+$500</span>
+              </div>
+            </div>
+
+            <!-- Cost Breakdown -->
+            <div class="cost-breakdown" id="cost-breakdown">
+              <div class="cost-row">
+                <span>سعر العقد</span>
+                <span id="cost-base">$0</span>
+              </div>
+              <div class="cost-row anon-row hidden" id="anon-cost-row">
+                <span>رسوم إخفاء الهوية</span>
+                <span id="cost-anon">$0</span>
+              </div>
+              <div class="cost-row service-row">
+                <span>رسوم الخدمة (10%)</span>
+                <span id="cost-fee">$0</span>
+              </div>
+              <div class="cost-row total-row">
+                <span>المبلغ الإجمالي</span>
+                <span id="cost-total">$0</span>
+              </div>
+              <div class="cost-row reward-row">
+                <span><i class="fas fa-award"></i> مكافأة القاتل</span>
+                <span id="cost-reward">$0</span>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <button class="submit-btn" id="civ-submit">
+              <i class="fas fa-paper-plane"></i>
+              <span>نشر العقد</span>
+            </button>
+
+            <!-- Feedback -->
+            <div id="civ-feedback" class="feedback-msg hidden"></div>
+            <div id="cooldown-notice" class="cooldown-notice hidden">
+              <i class="fas fa-clock"></i> <span id="cooldown-text"></span>
+            </div>
+          </div>
+
+        </div>
+        </div>
+
+        <!-- MY CONTRACTS VIEW -->
+        <div id="civ-view-my" class="civ-view">
+          <div class="tab-header" style="margin-bottom:12px">
+            <h2><i class="fas fa-comments"></i> عقودي</h2>
+            <button class="sidebar-refresh" id="my-contracts-refresh" style="margin:0"><i class="fas fa-sync-alt"></i> تحديث</button>
+          </div>
+          <div id="my-contracts-list" class="contracts-list">
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <p>لا توجد عقود — انشر عقودك أولاً</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     واجهة القاتل - لوحة التحكم
+═══════════════════════════════════════════════ -->
+<div id="hitman-ui" class="ui-overlay hidden">
+  <div class="tablet-frame hitman-tablet slide-up">
+    <div class="tablet-bezel">
+      <div class="tablet-camera"></div>
+    </div>
+    <div class="tablet-screen hitman-screen">
+
+      <!-- Sidebar -->
+      <div class="hitman-sidebar">
+        <div class="sidebar-logo">
+          <div class="logo-icon pulse-glow"><i class="fas fa-skull-crossbones"></i></div>
+          <div class="logo-text">
+            <span class="logo-title">القاتل</span>
+            <span class="logo-sub">HITMAN</span>
+          </div>
+        </div>
+
+        <div class="sidebar-rank" id="sidebar-rank">
+          <div class="rank-icon"><i class="fas fa-star"></i></div>
+          <div class="rank-info">
+            <span class="rank-label">الرتبة</span>
+            <span class="rank-name" id="rank-name-display">مبتدئ</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-tab="contracts">
+            <i class="fas fa-list-ul"></i>
+            <span>العقود</span>
+            <span class="nav-badge" id="contracts-badge">0</span>
+          </button>
+          <button class="nav-item" data-tab="active">
+            <i class="fas fa-crosshairs"></i>
+            <span>النشطة</span>
+            <span class="nav-badge" id="active-badge">0</span>
+          </button>
+          <button class="nav-item" data-tab="completed">
+            <i class="fas fa-check-double"></i>
+            <span>المنجزة</span>
+          </button>
+          <button class="nav-item" data-tab="stats">
+            <i class="fas fa-chart-bar"></i>
+            <span>الإحصائيات</span>
+          </button>
+        </nav>
+
+        <button class="sidebar-refresh" id="hitman-refresh">
+          <i class="fas fa-sync-alt"></i> تحديث
+        </button>
+
+        <button class="sidebar-close" id="hitman-close">
+          <i class="fas fa-times"></i> إغلاق
+        </button>
+      </div>
+
+      <!-- Main Content -->
+      <div class="hitman-content">
+
+        <!-- Contracts Tab -->
+        <div class="tab-pane active" id="tab-contracts">
+          <div class="tab-header">
+            <h2><i class="fas fa-list-ul"></i> العقود المتاحة</h2>
+            <div class="tab-actions">
+              <select id="filter-priority" class="filter-select">
+                <option value="all">جميع الأولويات</option>
+                <option value="urgent">عاجل</option>
+                <option value="high">عالي</option>
+                <option value="normal">عادي</option>
+              </select>
+              <select id="sort-by" class="filter-select">
+                <option value="price_desc">الأعلى مكافأة</option>
+                <option value="price_asc">الأقل مكافأة</option>
+                <option value="newest">الأحدث</option>
+              </select>
+            </div>
+          </div>
+          <div id="contracts-list" class="contracts-list">
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <p>لا توجد عقود متاحة</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Missions Tab -->
+        <div class="tab-pane" id="tab-active">
+          <div class="tab-header">
+            <h2><i class="fas fa-crosshairs"></i> المهمات النشطة</h2>
+          </div>
+          <div id="active-list" class="contracts-list">
+            <div class="empty-state">
+              <i class="fas fa-crosshairs"></i>
+              <p>لا توجد مهمات نشطة</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed Tab -->
+        <div class="tab-pane" id="tab-completed">
+          <div class="tab-header">
+            <h2><i class="fas fa-check-double"></i> المهمات المنجزة</h2>
+          </div>
+          <div id="completed-list" class="contracts-list">
+            <div class="empty-state">
+              <i class="fas fa-trophy"></i>
+              <p>لا توجد مهمات منجزة بعد</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Tab -->
+        <div class="tab-pane" id="tab-stats">
+          <div class="tab-header">
+            <h2><i class="fas fa-chart-bar"></i> الإحصائيات</h2>
+          </div>
+          <div id="stats-panel" class="stats-panel">
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-icon kills"><i class="fas fa-skull"></i></div>
+                <div class="stat-info">
+                  <span class="stat-value" id="stat-kills">0</span>
+                  <span class="stat-label">القتلى</span>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon earnings"><i class="fas fa-coins"></i></div>
+                <div class="stat-info">
+                  <span class="stat-value" id="stat-earnings">$0</span>
+                  <span class="stat-label">إجمالي الأرباح</span>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon missions"><i class="fas fa-tasks"></i></div>
+                <div class="stat-info">
+                  <span class="stat-value" id="stat-missions">0</span>
+                  <span class="stat-label">المهمات</span>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon success"><i class="fas fa-percentage"></i></div>
+                <div class="stat-info">
+                  <span class="stat-value" id="stat-rate">0%</span>
+                  <span class="stat-label">نسبة النجاح</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rank Progress -->
+            <div class="rank-progress-card">
+              <div class="rpc-header">
+                <span class="rpc-title">تقدم الرتبة</span>
+                <span class="rpc-current" id="rpc-rank">مبتدئ</span>
+              </div>
+              <div class="rank-progress-bar">
+                <div class="rpb-fill" id="rank-bar-fill"></div>
+                <div class="rpb-labels">
+                  <span id="rpb-current-kills">0 قتلى</span>
+                  <span id="rpb-next">التالي: 5 قتلى</span>
+                </div>
+              </div>
+              <div class="rank-bonus-display" id="rank-bonus">
+                المكافأة النشطة: <strong>+0%</strong>
+              </div>
+            </div>
+
+            <!-- Rank Ladder -->
+            <div class="rank-ladder" id="rank-ladder"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     نافذة تفاصيل العقد + الدردشة (مشتركة)
+═══════════════════════════════════════════════ -->
+<div id="chat-modal" class="ui-overlay hidden">
+  <div class="chat-window slide-up">
+    <div class="chat-header">
+      <div class="header-icon pulse-glow" style="width:38px;height:38px"><i class="fas fa-comments"></i></div>
+      <div class="chat-header-info">
+        <span class="chat-title" id="chat-title">تفاصيل العقد</span>
+        <span class="chat-sub" id="chat-subtitle">—</span>
+      </div>
+      <button class="close-btn" id="chat-close"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="chat-summary" id="chat-summary">
+      <!-- Contract summary chips injected here -->
+    </div>
+
+    <div class="chat-messages" id="chat-messages"></div>
+
+    <div class="chat-input-row">
+      <input type="text" id="chat-input" maxlength="200" placeholder="اكتب رسالة..." autocomplete="off"/>
+      <button class="chat-send-btn" id="chat-send"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- Notification Container -->
+<div id="notification-container"></div>
+
+<script src="js/app.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/civilian.js"></script>
+<script src="js/hitman.js"></script>
+</body>
+</html>
