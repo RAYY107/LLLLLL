@@ -38,7 +38,7 @@ window.HitmanUI = (() => {
   // ─── TAB SWITCHING ──────────────────────────
   function switchTab(tabId) {
     state.currentTab = tabId;
-    EvoraSelect.closeOpen();
+    CustomSelect.closeOpen();
 
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -285,7 +285,7 @@ window.HitmanUI = (() => {
     $('stat-rate').textContent     = rate + '%';
 
     if (stats.rank) {
-      const rankColor = stats.rankColor || 'var(--evora-primary)';
+      const rankColor = stats.rankColor || 'var(--ui-primary)';
       $('rank-name-display').textContent = stats.rank;
       $('rpc-rank').textContent = stats.rank;
       $('sidebar-rank').style.setProperty('--rank-color', rankColor);
