@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════
    نظام الاغتيال - المتحكم الرئيسي
-   Arabic RTL App Controller
+   Arabic RTL App Controller (EVORA)
 ═══════════════════════════════════════════════ */
 
 'use strict';
@@ -190,27 +190,27 @@ function applyBackground(bg, dim) {
 // Config key → CSS variable. Variables with an "-rgb" twin also drive the alpha
 // tints (hover fills, borders, focus ring…), so one key recolors every shade.
 const THEME_KEYS = {
-  primary:       '--ui-primary',
-  primaryHover:  '--ui-primary-hover',
-  primaryDark:   '--ui-primary-dark',
-  accent:        '--ui-lavender',
-  background:    '--ui-bg',
-  surface:       '--ui-surface',
-  surface2:      '--ui-surface-2',
-  surface3:      '--ui-surface-3',
-  input:         '--ui-input-bg',
-  border:        '--ui-border',
-  borderStrong:  '--ui-border-strong',
-  text:          '--ui-text',
-  textSecondary: '--ui-text-secondary',
-  textMuted:     '--ui-text-muted',
-  textOnAccent:  '--ui-text-on-accent',
-  success:       '--ui-success',
-  warning:       '--ui-warning',
-  danger:        '--ui-danger',
+  primary:       '--evora-primary',
+  primaryHover:  '--evora-primary-hover',
+  primaryDark:   '--evora-primary-dark',
+  accent:        '--evora-lavender',
+  background:    '--evora-bg',
+  surface:       '--evora-surface',
+  surface2:      '--evora-surface-2',
+  surface3:      '--evora-surface-3',
+  input:         '--evora-input-bg',
+  border:        '--evora-border',
+  borderStrong:  '--evora-border-strong',
+  text:          '--evora-text',
+  textSecondary: '--evora-text-secondary',
+  textMuted:     '--evora-text-muted',
+  textOnAccent:  '--evora-text-on-accent',
+  success:       '--evora-success',
+  warning:       '--evora-warning',
+  danger:        '--evora-danger',
 };
-const THEME_RGB = ['--ui-primary', '--ui-primary-dark', '--ui-lavender', '--ui-bg',
-                   '--ui-surface', '--ui-success', '--ui-warning', '--ui-danger'];
+const THEME_RGB = ['--evora-primary', '--evora-primary-dark', '--evora-lavender', '--evora-bg',
+                   '--evora-surface', '--evora-success', '--evora-warning', '--evora-danger'];
 
 // "auto" shades are generated from primary; these HSL offsets reproduce the default palette.
 const THEME_AUTO = {
@@ -296,7 +296,7 @@ function handleOpen(mode, data) {
 }
 
 function handleClose() {
-  CustomSelect.closeOpen();
+  EvoraSelect.closeOpen();
   $('civilian-ui')?.classList.add('hidden');
   $('hitman-ui')?.classList.add('hidden');
   document.body.style.pointerEvents = 'none';
@@ -308,7 +308,7 @@ function handleClose() {
 // Progressive enhancement of native <select>: the native element stays in
 // the DOM as the source of truth and still fires 'change', so existing
 // listeners keep working unchanged.
-const CustomSelect = (() => {
+const EvoraSelect = (() => {
   let current = null;
 
   function closeOpen() {
@@ -389,13 +389,13 @@ const CustomSelect = (() => {
   return { enhance, closeOpen };
 })();
 
-document.querySelectorAll('select.filter-select').forEach(CustomSelect.enhance);
+document.querySelectorAll('select.filter-select').forEach(EvoraSelect.enhance);
 
 // ─── CLOSE ON ESCAPE ────────────────────────
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     // An open dropdown closes first
-    if (CustomSelect.closeOpen()) return;
+    if (EvoraSelect.closeOpen()) return;
     // Close the chat modal first if it's open
     if (window.ChatUI && ChatUI.isOpen()) {
       ChatUI.close();
