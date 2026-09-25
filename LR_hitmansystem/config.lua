@@ -139,7 +139,45 @@ Config.UseVrpGetHealth     = true -- vRP.getHealth (extra coma detection layer)
 --   • Local file: put the file inside html/img/ and set the path
 --     relative to the html folder, e.g. "img/mybackground.gif"
 --   • Or a full URL: "https://mysite.com/bg.gif"
--- Leave "" to keep the default clean dark-red glass look.
+-- Leave "" to keep the plain background (colored by Config.UITheme below).
 -- Any image/GIF size works — it is auto-scaled to fill (cover).
 Config.UIBackground       = ""
 Config.UIBackgroundDim    = 0.45  -- 0.0 = full brightness, 1.0 = fully dark
+
+-- ─── UI COLORS (THEME) ───────────────────────────────────
+-- Every color in the UI comes from this table. Use hex colors: "#RRGGBB".
+--   • To recolor the whole UI, change "primary" only — every value set to
+--     "auto" is generated from it (hover, dark shade, accent).
+--   • Any key that is removed or invalid keeps its default.
+--   • Rank dot colors come from Config.Ranks above.
+-- ألوان الواجهة: غيّر "primary" فقط لتغيير لون الواجهة بالكامل، والقيم "auto"
+-- تُولَّد تلقائياً منه. استخدم صيغة الألوان "#RRGGBB".
+-- Examples for primary: "#8673CE" purple (default) · "#E0626E" red
+--                       "#4F8EF7" blue · "#3FB68B" green · "#D4A94C" gold
+Config.UITheme = {
+    -- Accent
+    primary       = "#8673CE", -- buttons, active tabs, selections, progress
+    primaryHover  = "auto",    -- button hover                ("auto" = lighter primary)
+    primaryDark   = "auto",    -- your chat bubbles, gradients ("auto" = darker primary)
+    accent        = "auto",    -- icons, rewards, highlights   ("auto" = soft primary tint)
+
+    -- Backgrounds
+    background    = "#08080D", -- window background
+    surface       = "#11111A", -- panels, cards, sidebar, notifications
+    surface2      = "#15151F", -- hover states, secondary buttons
+    surface3      = "#1C1A28", -- raised elements, active tab
+    input         = "#0C0C13", -- inputs and inset boxes
+    border        = "#272433", -- borders
+    borderStrong  = "#383349", -- hover borders, dividers
+
+    -- Text
+    text          = "#F5F3FA", -- headings and main text
+    textSecondary = "#B8B3C7", -- body text
+    textMuted     = "#777286", -- hints and labels
+    textOnAccent  = "#FFFFFF", -- text on primary buttons
+
+    -- Status
+    success       = "#5DBB8C", -- completed, success notifications
+    warning       = "#D6A35C", -- high priority, in progress, cooldown
+    danger        = "#E0626E", -- urgent priority, errors, cancel buttons
+}

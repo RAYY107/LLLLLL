@@ -186,9 +186,94 @@ function applyBackground(bg, dim) {
   }
 }
 
+// ─── THEME (Config.UITheme) ─────────────────
+// Config key → CSS variable. Variables with an "-rgb" twin also drive the alpha
+// tints (hover fills, borders, focus ring…), so one key recolors every shade.
+const THEME_KEYS = {
+  primary:       '--evora-primary',
+  primaryHover:  '--evora-primary-hover',
+  primaryDark:   '--evora-primary-dark',
+  accent:        '--evora-lavender',
+  background:    '--evora-bg',
+  surface:       '--evora-surface',
+  surface2:      '--evora-surface-2',
+  surface3:      '--evora-surface-3',
+  input:         '--evora-input-bg',
+  border:        '--evora-border',
+  borderStrong:  '--evora-border-strong',
+  text:          '--evora-text',
+  textSecondary: '--evora-text-secondary',
+  textMuted:     '--evora-text-muted',
+  textOnAccent:  '--evora-text-on-accent',
+  success:       '--evora-success',
+  warning:       '--evora-warning',
+  danger:        '--evora-danger',
+};
+const THEME_RGB = ['--evora-primary', '--evora-primary-dark', '--evora-lavender', '--evora-bg',
+                   '--evora-surface', '--evora-success', '--evora-warning', '--evora-danger'];
+
+// "auto" shades are generated from primary; these HSL offsets reproduce the default palette.
+const THEME_AUTO = {
+  primaryHover: { s: 12,  l: 7 },
+  primaryDark:  { s: -12, l: -26 },
+  accent:       { s: 21,  l: 14 },
+};
+
+function parseHex(value) {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(value ?? '').trim());
+  if (!m) return null;
+  const hex = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
+  const n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function shiftHsl(rgb, delta) {
+  const [r, g, b] = rgb.map((v) => v / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (d) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+    s = Math.min(1, Math.max(0, s + delta.s / 100)); // greys stay grey
+  }
+  l = Math.min(1, Math.max(0, l + delta.l / 100));
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+  const m = l - c / 2;
+  const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+                     : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [r1, g1, b1].map((v) => Math.round((v + m) * 255));
+}
+
+function applyTheme(theme) {
+  if (!theme || typeof theme !== 'object') return;
+  const style = document.documentElement.style;
+  const primary = parseHex(theme.primary);
+
+  Object.entries(THEME_KEYS).forEach(([key, cssVar]) => {
+    let rgb = parseHex(theme[key]);
+    if (!rgb && THEME_AUTO[key] && primary) rgb = shiftHsl(primary, THEME_AUTO[key]); // "auto"
+    if (!rgb) return; // missing or invalid: keep the stylesheet default
+    style.setProperty(cssVar, `rgb(${rgb.join(', ')})`);
+    if (THEME_RGB.includes(cssVar)) style.setProperty(cssVar + '-rgb', rgb.join(', '));
+  });
+}
+
+// Ask Lua for the theme as soon as the page loads, so notifications are themed
+// before any window opens. Every 'open' payload re-applies it as well.
+(function requestTheme(attempt) {
+  post('nuiReady')
+    .then((r) => r.json())
+    .then((res) => applyTheme(res && res.theme))
+    .catch(() => { if (attempt < 4) setTimeout(() => requestTheme(attempt + 1), 1000 * (attempt + 1)); });
+})(0);
+
 function handleOpen(mode, data) {
   AppState.mode = mode;
   document.body.style.pointerEvents = 'auto';
+
+  if (data && data.theme) applyTheme(data.theme);
 
   // Optional custom background (GIF/image) — fills the UI automatically
   if (data && data.uiBackground !== undefined) {

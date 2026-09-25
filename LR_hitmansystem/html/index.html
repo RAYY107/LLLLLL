@@ -16,8 +16,8 @@
 <svg class="svg-defs" aria-hidden="true" focusable="false">
   <defs>
     <linearGradient id="evora-mark-fill" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#C9BEF7"/>
-      <stop offset="1" stop-color="#8673CE"/>
+      <stop offset="0" class="mark-stop-light"/>
+      <stop offset="1" class="mark-stop-base"/>
     </linearGradient>
     <symbol id="evora-mark" viewBox="0 0 60 41">
       <path fill="url(#evora-mark-fill)" d="M6.8 0H35.2L28 6.8H0Z M1.5 10.2H24.2L39 29L54 10.2H60L39 41L22.5 17.8H7.2Z M8.8 21.3H22.2L27 28.8H14Z"/>
@@ -55,145 +55,128 @@
       <div id="civ-view-new" class="civ-view active">
         <div class="civilian-grid">
 
-          <!-- Players (RTL start) -->
-          <section class="panel player-panel">
+          <!-- Contract details -->
+          <section class="panel contract-panel">
             <div class="panel-head">
-              <h3 class="panel-title"><i class="fas fa-users"></i> اللاعبون المتصلون</h3>
-              <span class="count-badge" id="player-count">0</span>
+              <h3 class="panel-title"><i class="fas fa-file-signature"></i> تفاصيل العقد</h3>
             </div>
-            <div class="input-wrap search-bar">
-              <i class="fas fa-magnifying-glass input-icon"></i>
-              <input type="text" id="player-search" class="input" placeholder="ابحث بالاسم أو الرقم..." autocomplete="off"/>
-            </div>
-            <div id="player-grid" class="player-grid">
-              <!-- Players injected here by JS -->
+
+            <div class="panel-scroll form-stack">
+              <div class="field">
+                <label class="field-label" for="target-id-input">رقم اللاعب المستهدف</label>
+                <div class="input-wrap">
+                  <i class="fas fa-hashtag input-icon"></i>
+                  <input type="number" id="target-id-input" class="input input-numeric" placeholder="أدخل رقم اللاعب" min="1"/>
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="field-label" for="contract-price">سعر العقد</label>
+                <div class="input-wrap">
+                  <span class="input-icon currency-symbol">$</span>
+                  <input type="number" id="contract-price" class="input input-numeric" placeholder="5000" min="5000"/>
+                </div>
+                <div class="field-hint" id="price-limits">الحد الأدنى: $5,000 — الحد الأقصى: $500,000</div>
+              </div>
+
+              <div class="field">
+                <span class="field-label">مستوى الأولوية</span>
+                <div class="segmented segmented-fill priority-selector" id="priority-selector">
+                  <button class="segmented-btn priority-btn active" data-priority="normal"><span class="prio-dot"></span><span>عادي</span></button>
+                  <button class="segmented-btn priority-btn" data-priority="high"><span class="prio-dot"></span><span>عالي</span><span class="seg-meta" dir="ltr">+25%</span></button>
+                  <button class="segmented-btn priority-btn" data-priority="urgent"><span class="prio-dot"></span><span>عاجل</span><span class="seg-meta" dir="ltr">+50%</span></button>
+                </div>
+                <div class="field-hint">الأولوية الأعلى ترفع مكافأة القاتل المأجور</div>
+              </div>
+
+              <div class="field">
+                <label class="field-label" for="contract-notes">ملاحظات <span class="field-optional">(اختياري)</span></label>
+                <textarea id="contract-notes" class="input textarea" placeholder="أي تفاصيل للقاتل..."></textarea>
+              </div>
+
+              <div class="toggle-row" id="anon-group">
+                <div class="toggle-copy">
+                  <span class="toggle-title"><i class="fas fa-user-secret"></i> إخفاء الهوية</span>
+                  <span class="toggle-desc">لن تظهر هويتك للقاتل المأجور</span>
+                </div>
+                <div class="toggle-wrap">
+                  <span class="toggle-label" id="anon-fee-label" dir="ltr">+$500</span>
+                  <label class="toggle">
+                    <input type="checkbox" id="anon-toggle"/>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
             </div>
           </section>
 
-          <div class="civ-side">
-            <!-- Contract details -->
-            <section class="panel contract-panel">
-              <div class="panel-head">
-                <h3 class="panel-title"><i class="fas fa-file-signature"></i> تفاصيل العقد</h3>
+          <!-- Summary (RTL end) -->
+          <aside class="panel summary-panel">
+            <div class="panel-head">
+              <h3 class="panel-title"><i class="fas fa-crosshairs"></i> معاينة الهدف</h3>
+            </div>
+
+            <div class="panel-scroll summary-body">
+              <div id="selected-target" class="target-card hidden">
+                <div class="target-avatar-container">
+                  <img id="ped-mugshot-img" class="ped-mugshot hidden" alt=""/>
+                  <div id="ped-fallback-icon" class="target-avatar"><i class="fas fa-user-secret"></i></div>
+                </div>
+                <div class="target-info">
+                  <span class="target-eyebrow">الهدف المحدد</span>
+                  <div class="target-name" id="target-name-display">-</div>
+                  <div class="target-id-display">الرقم: <span id="target-id-display" dir="ltr">-</span></div>
+                </div>
+                <button class="icon-btn icon-btn-sm clear-target-btn" id="clear-target" aria-label="إلغاء التحديد"><i class="fas fa-xmark"></i></button>
+              </div>
+              <div class="target-empty" id="target-empty">
+                <div class="target-empty-icon"><i class="fas fa-user-plus" id="target-empty-icon"></i></div>
+                <strong id="target-empty-title">لم يتم تحديد هدف</strong>
+                <span id="target-empty-desc">أدخل رقم اللاعب لعرض معاينته</span>
               </div>
 
-              <div class="panel-scroll form-stack">
-                <div class="field">
-                  <label class="field-label" for="target-id-input">رقم اللاعب المستهدف</label>
-                  <div class="input-wrap">
-                    <i class="fas fa-hashtag input-icon"></i>
-                    <input type="number" id="target-id-input" class="input input-numeric" placeholder="أدخل رقم اللاعب" min="1"/>
+              <div class="cost-breakdown" id="cost-breakdown">
+                <div class="cost-group">
+                  <div class="cost-row">
+                    <span>سعر العقد</span>
+                    <span class="cost-value" id="cost-base">$0</span>
+                  </div>
+                  <div class="cost-row hidden" id="anon-cost-row">
+                    <span>رسوم إخفاء الهوية</span>
+                    <span class="cost-value" id="cost-anon">$0</span>
+                  </div>
+                  <div class="cost-row total-row">
+                    <span>المبلغ الإجمالي</span>
+                    <span class="cost-value" id="cost-total">$0</span>
                   </div>
                 </div>
-
-                <div class="field">
-                  <label class="field-label" for="contract-price">سعر العقد</label>
-                  <div class="input-wrap">
-                    <span class="input-icon currency-symbol">$</span>
-                    <input type="number" id="contract-price" class="input input-numeric" placeholder="5000" min="5000"/>
+                <div class="cost-group reward-group">
+                  <div class="cost-row muted-row">
+                    <span id="cost-fee-label">رسوم الخدمة (10%)</span>
+                    <span class="cost-value" id="cost-fee">$0</span>
                   </div>
-                  <div class="field-hint" id="price-limits">الحد الأدنى: $5,000 — الحد الأقصى: $500,000</div>
-                </div>
-
-                <div class="field">
-                  <span class="field-label">مستوى الأولوية</span>
-                  <div class="segmented segmented-fill priority-selector" id="priority-selector">
-                    <button class="segmented-btn priority-btn active" data-priority="normal"><span class="prio-dot"></span><span>عادي</span></button>
-                    <button class="segmented-btn priority-btn" data-priority="high"><span class="prio-dot"></span><span>عالي</span><span class="seg-meta" dir="ltr">+25%</span></button>
-                    <button class="segmented-btn priority-btn" data-priority="urgent"><span class="prio-dot"></span><span>عاجل</span><span class="seg-meta" dir="ltr">+50%</span></button>
+                  <div class="cost-row muted-row hidden" id="priority-cost-row">
+                    <span id="cost-priority-label">زيادة الأولوية</span>
+                    <span class="cost-value" id="cost-priority">$0</span>
                   </div>
-                  <div class="field-hint">الأولوية الأعلى ترفع مكافأة القاتل المأجور</div>
-                </div>
-
-                <div class="field">
-                  <label class="field-label" for="contract-notes">ملاحظات <span class="field-optional">(اختياري)</span></label>
-                  <textarea id="contract-notes" class="input textarea" placeholder="أي تفاصيل للقاتل..."></textarea>
-                </div>
-
-                <div class="toggle-row" id="anon-group">
-                  <div class="toggle-copy">
-                    <span class="toggle-title"><i class="fas fa-user-secret"></i> إخفاء الهوية</span>
-                    <span class="toggle-desc">لن تظهر هويتك للقاتل المأجور</span>
-                  </div>
-                  <div class="toggle-wrap">
-                    <span class="toggle-label" id="anon-fee-label" dir="ltr">+$500</span>
-                    <label class="toggle">
-                      <input type="checkbox" id="anon-toggle"/>
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Summary (RTL end) -->
-            <aside class="panel summary-panel">
-              <div class="panel-head">
-                <h3 class="panel-title"><i class="fas fa-crosshairs"></i> معاينة الهدف</h3>
-              </div>
-
-              <div class="panel-scroll summary-body">
-                <div id="selected-target" class="target-card hidden">
-                  <div class="target-avatar-container">
-                    <img id="ped-mugshot-img" class="ped-mugshot hidden" alt=""/>
-                    <div id="ped-fallback-icon" class="target-avatar"><i class="fas fa-user-secret"></i></div>
-                  </div>
-                  <div class="target-info">
-                    <span class="target-eyebrow">الهدف المحدد</span>
-                    <div class="target-name" id="target-name-display">-</div>
-                    <div class="target-id-display">الرقم: <span id="target-id-display" dir="ltr">-</span></div>
-                  </div>
-                  <button class="icon-btn icon-btn-sm clear-target-btn" id="clear-target" aria-label="إلغاء التحديد"><i class="fas fa-xmark"></i></button>
-                </div>
-                <div class="target-empty">
-                  <div class="target-empty-icon"><i class="fas fa-user-plus"></i></div>
-                  <strong>لم يتم تحديد هدف</strong>
-                  <span>اختر لاعباً من القائمة أو أدخل رقمه</span>
-                </div>
-
-                <div class="cost-breakdown" id="cost-breakdown">
-                  <div class="cost-group">
-                    <div class="cost-row">
-                      <span>سعر العقد</span>
-                      <span class="cost-value" id="cost-base">$0</span>
-                    </div>
-                    <div class="cost-row hidden" id="anon-cost-row">
-                      <span>رسوم إخفاء الهوية</span>
-                      <span class="cost-value" id="cost-anon">$0</span>
-                    </div>
-                    <div class="cost-row total-row">
-                      <span>المبلغ الإجمالي</span>
-                      <span class="cost-value" id="cost-total">$0</span>
-                    </div>
-                  </div>
-                  <div class="cost-group reward-group">
-                    <div class="cost-row muted-row">
-                      <span id="cost-fee-label">رسوم الخدمة (10%)</span>
-                      <span class="cost-value" id="cost-fee">$0</span>
-                    </div>
-                    <div class="cost-row muted-row hidden" id="priority-cost-row">
-                      <span id="cost-priority-label">زيادة الأولوية</span>
-                      <span class="cost-value" id="cost-priority">$0</span>
-                    </div>
-                    <div class="cost-row reward-row">
-                      <span><i class="fas fa-award"></i> مكافأة القاتل</span>
-                      <span class="cost-value" id="cost-reward">$0</span>
-                    </div>
+                  <div class="cost-row reward-row">
+                    <span><i class="fas fa-award"></i> مكافأة القاتل</span>
+                    <span class="cost-value" id="cost-reward">$0</span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div class="summary-actions">
-                <div id="cooldown-notice" class="cooldown-notice hidden">
-                  <i class="fas fa-hourglass-half"></i> <span id="cooldown-text"></span>
-                </div>
-                <button class="btn btn-primary btn-lg btn-block submit-btn" id="civ-submit">
-                  <i class="fas fa-paper-plane"></i>
-                  <span>نشر العقد</span>
-                </button>
+            <div class="summary-actions">
+              <div id="cooldown-notice" class="cooldown-notice hidden">
+                <i class="fas fa-hourglass-half"></i> <span id="cooldown-text"></span>
               </div>
-            </aside>
-          </div>
+              <button class="btn btn-primary btn-lg btn-block submit-btn" id="civ-submit">
+                <i class="fas fa-paper-plane"></i>
+                <span>نشر العقد</span>
+              </button>
+            </div>
+          </aside>
 
         </div>
       </div>

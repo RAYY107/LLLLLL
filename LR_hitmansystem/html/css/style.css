@@ -13,9 +13,9 @@
 
   /* Surfaces */
   --evora-bg:             #08080D;
-  --evora-bg-window:      rgba(8, 8, 13, 0.97);
+  --evora-bg-window:      rgba(var(--evora-bg-rgb), 0.97);
   --evora-surface:        #11111A;
-  --evora-surface-glass:  rgba(17, 17, 26, 0.88);  /* lets Config.UIBackground show through */
+  --evora-surface-glass:  rgba(var(--evora-surface-rgb), 0.88);  /* lets Config.UIBackground show through */
   --evora-surface-2:      #15151F;
   --evora-surface-3:      #1C1A28;
   --evora-input-bg:       #0C0C13;
@@ -28,21 +28,32 @@
   --evora-text-muted:     #777286;
   --evora-text-on-accent: #FFFFFF;
 
-  /* Purple tints (alpha of --evora-primary) */
-  --evora-tint:           rgba(134, 115, 206, 0.10);
-  --evora-tint-strong:    rgba(134, 115, 206, 0.18);
-  --evora-tint-border:    rgba(134, 115, 206, 0.38);
+  /* RGB channels of the themeable colors — alpha tints are built from these,
+     so every shade follows Config.UITheme (set at runtime by app.js) */
+  --evora-primary-rgb:      134, 115, 206;
+  --evora-primary-dark-rgb: 75, 58, 130;
+  --evora-lavender-rgb:     169, 155, 239;
+  --evora-bg-rgb:           8, 8, 13;
+  --evora-surface-rgb:      17, 17, 26;
+  --evora-success-rgb:      93, 187, 140;
+  --evora-warning-rgb:      214, 163, 92;
+  --evora-danger-rgb:       224, 98, 110;
+
+  /* Primary tints */
+  --evora-tint:           rgba(var(--evora-primary-rgb), 0.10);
+  --evora-tint-strong:    rgba(var(--evora-primary-rgb), 0.18);
+  --evora-tint-border:    rgba(var(--evora-primary-rgb), 0.38);
 
   /* Semantic — desaturated so purple stays the only accent */
   --evora-success:        #5DBB8C;
-  --evora-success-tint:   rgba(93, 187, 140, 0.10);
-  --evora-success-border: rgba(93, 187, 140, 0.28);
+  --evora-success-tint:   rgba(var(--evora-success-rgb), 0.10);
+  --evora-success-border: rgba(var(--evora-success-rgb), 0.28);
   --evora-warning:        #D6A35C;
-  --evora-warning-tint:   rgba(214, 163, 92, 0.10);
-  --evora-warning-border: rgba(214, 163, 92, 0.28);
+  --evora-warning-tint:   rgba(var(--evora-warning-rgb), 0.10);
+  --evora-warning-border: rgba(var(--evora-warning-rgb), 0.28);
   --evora-danger:         #E0626E;
-  --evora-danger-tint:    rgba(224, 98, 110, 0.10);
-  --evora-danger-border:  rgba(224, 98, 110, 0.30);
+  --evora-danger-tint:    rgba(var(--evora-danger-rgb), 0.10);
+  --evora-danger-border:  rgba(var(--evora-danger-rgb), 0.30);
 
   /* Spacing */
   --evora-space-1: 4px;
@@ -80,7 +91,7 @@
   --evora-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
   --evora-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32);
   --evora-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.3);
-  --evora-focus-ring: 0 0 0 3px rgba(134, 115, 206, 0.28);
+  --evora-focus-ring: 0 0 0 3px rgba(var(--evora-primary-rgb), 0.28);
 
   /* Motion */
   --evora-ease:            cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -136,7 +147,7 @@ img { display: block; }
   z-index: 1000;
   display: flex; align-items: center; justify-content: center;
   pointer-events: all;
-  background: radial-gradient(120% 100% at 50% 50%, rgba(8, 8, 13, 0.2) 0%, rgba(8, 8, 13, 0.6) 100%);
+  background: radial-gradient(120% 100% at 50% 50%, rgba(var(--evora-bg-rgb), 0.2) 0%, rgba(var(--evora-bg-rgb), 0.6) 100%);
   animation: fadeIn 200ms ease backwards;
 }
 
@@ -144,7 +155,7 @@ img { display: block; }
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(125deg, transparent 0 58%, rgba(134, 115, 206, 0.035) 58% 74%, transparent 74%),
+    linear-gradient(125deg, transparent 0 58%, rgba(var(--evora-primary-rgb), 0.035) 58% 74%, transparent 74%),
     var(--evora-bg-window);
   border: 1px solid var(--evora-border);
   border-radius: var(--evora-radius-xl);
@@ -159,7 +170,7 @@ img { display: block; }
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(8, 8, 13, var(--ui-bg-dim, 0.45)), rgba(8, 8, 13, var(--ui-bg-dim, 0.45))),
+    linear-gradient(rgba(var(--evora-bg-rgb), var(--ui-bg-dim, 0.45)), rgba(var(--evora-bg-rgb), var(--ui-bg-dim, 0.45))),
     var(--ui-bg-img, none);
   background-size: cover;
   background-position: center;
@@ -173,16 +184,19 @@ img { display: block; }
   height: 1px;
   z-index: 3;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(169, 155, 239, 0.45), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--evora-lavender-rgb), 0.45), transparent);
 }
 
 .app-window > * { position: relative; z-index: 1; }
 
 /* ─── 5. BRAND ────────────────────────────────── */
+.mark-stop-light { stop-color: var(--evora-lavender); }
+.mark-stop-base  { stop-color: var(--evora-primary); }
+
 .brand-mark {
   width: 34px; height: 24px;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 6px rgba(75, 58, 130, 0.45));
+  filter: drop-shadow(0 2px 6px rgba(var(--evora-primary-dark-rgb), 0.45));
 }
 
 .brand-wordmark {
@@ -202,7 +216,7 @@ img { display: block; }
   height: 72px;
   padding: 0 var(--evora-space-5);
   border-bottom: 1px solid var(--evora-border);
-  background: rgba(17, 17, 26, 0.6);
+  background: rgba(var(--evora-surface-rgb), 0.6);
   flex-shrink: 0;
 }
 
@@ -274,7 +288,7 @@ img { display: block; }
   border-color: var(--evora-danger-border);
   color: var(--evora-danger);
 }
-.btn-danger:hover:not(:disabled) { background: rgba(224, 98, 110, 0.18); }
+.btn-danger:hover:not(:disabled) { background: rgba(var(--evora-danger-rgb), 0.18); }
 
 /* Two-step confirm state for irreversible actions */
 .btn.is-armed,
@@ -567,18 +581,6 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .tag-warning { background: var(--evora-warning-tint); border-color: var(--evora-warning-border);  color: var(--evora-warning); }
 .tag-danger  { background: var(--evora-danger-tint);  border-color: var(--evora-danger-border);   color: var(--evora-danger); }
 
-.count-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 24px; height: 22px;
-  padding: 0 var(--evora-space-2);
-  border-radius: var(--evora-radius-full);
-  background: var(--evora-surface-3);
-  color: var(--evora-text-secondary);
-  font-family: var(--evora-font-display);
-  font-size: 11px;
-  font-weight: var(--evora-weight-semibold);
-}
-
 .status-badge {
   --status-color: var(--evora-text-muted);
   display: inline-flex; align-items: center; gap: 6px;
@@ -656,7 +658,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 ═══════════════════════════════════════════════ */
 .civilian-window {
   display: flex; flex-direction: column;
-  width: min(1120px, 96vw);
+  width: min(880px, 96vw);
   height: min(740px, 92vh);
 }
 
@@ -666,95 +668,12 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .civilian-grid {
   flex: 1; min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px 300px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: var(--evora-space-4);
 }
-.civ-side { display: contents; }
 
-/* Players */
-.search-bar { margin-bottom: var(--evora-space-3); flex-shrink: 0; }
-
-.player-grid {
-  flex: 1; min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  align-content: start;
-  gap: var(--evora-space-2);
-  overflow-y: auto;
-  margin: 0 calc(var(--evora-space-4) * -1);
-  padding: 2px var(--evora-space-4);
-}
-
-.player-card {
-  position: relative;
-  display: flex; align-items: center; gap: 10px;
-  min-width: 0;
-  padding: 10px;
-  background: var(--evora-input-bg);
-  border: 1px solid var(--evora-border);
-  border-radius: var(--evora-radius-md);
-  text-align: right;
-  transition: background-color var(--evora-transition), border-color var(--evora-transition), box-shadow var(--evora-transition);
-  animation: cardIn 240ms var(--evora-ease) backwards;
-}
-.player-card:hover { background: var(--evora-surface-2); border-color: var(--evora-border-strong); }
-.player-card:focus-visible { box-shadow: var(--evora-focus-ring); }
-.player-card.selected {
-  background: var(--evora-tint);
-  border-color: var(--evora-tint-border);
-  box-shadow: inset 0 0 0 1px rgba(134, 115, 206, 0.2);
-}
-
-.pc-avatar {
-  display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
-  flex-shrink: 0;
-  border-radius: var(--evora-radius-sm);
-  background: var(--evora-surface-3);
-  border: 1px solid var(--evora-border);
-  color: var(--evora-text-secondary);
-  font-family: var(--evora-font-display);
-  font-size: var(--evora-text-md);
-  font-weight: var(--evora-weight-semibold);
-  transition: background-color var(--evora-transition), color var(--evora-transition), border-color var(--evora-transition);
-}
-.player-card.selected .pc-avatar { background: var(--evora-primary); border-color: transparent; color: var(--evora-text-on-accent); }
-
-.pc-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.pc-name,
 .target-name,
 .rank-name { unicode-bidi: plaintext; text-align: right; }
-.pc-name {
-  font-size: var(--evora-text-sm);
-  font-weight: var(--evora-weight-semibold);
-  color: var(--evora-text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.pc-id {
-  display: flex; align-items: center; gap: 6px;
-  font-family: var(--evora-font-display);
-  font-size: 11px;
-  color: var(--evora-text-muted);
-}
-.pc-self {
-  padding: 0 6px;
-  border-radius: var(--evora-radius-xs);
-  background: var(--evora-tint);
-  color: var(--evora-lavender);
-  font-family: var(--evora-font);
-  font-size: 10px;
-  font-weight: var(--evora-weight-semibold);
-  line-height: 16px;
-}
-.pc-check {
-  position: absolute; top: 8px; left: 8px;
-  font-size: 10px;
-  color: var(--evora-lavender);
-  opacity: 0;
-  transform: scale(0.6);
-  transition: opacity var(--evora-transition), transform var(--evora-transition);
-}
-.player-card.selected .pc-check { opacity: 1; transform: none; }
 
 /* Contract form */
 .form-stack { display: flex; flex-direction: column; gap: 18px; }
@@ -822,6 +741,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   color: var(--evora-lavender);
   font-size: var(--evora-text-md);
 }
+.target-empty.is-missing { border-color: var(--evora-warning-border); }
+.target-empty.is-missing .target-empty-icon { background: var(--evora-warning-tint); color: var(--evora-warning); }
 .target-empty strong { font-size: var(--evora-text-sm); font-weight: var(--evora-weight-semibold); color: var(--evora-text-secondary); }
 .target-empty span { font-size: var(--evora-text-xs); color: var(--evora-text-muted); }
 
@@ -857,7 +778,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 }
 .total-row .cost-value { font-size: var(--evora-text-lg); font-weight: var(--evora-weight-semibold); }
 
-.reward-group { background: var(--evora-tint); border-color: rgba(134, 115, 206, 0.24); }
+.reward-group { background: var(--evora-tint); border-color: rgba(var(--evora-primary-rgb), 0.24); }
 .muted-row { font-size: var(--evora-text-xs); color: var(--evora-text-muted); }
 .muted-row .cost-value { font-size: var(--evora-text-xs); color: var(--evora-text-secondary); }
 .reward-row { color: var(--evora-lavender); font-weight: var(--evora-weight-semibold); }
@@ -932,7 +853,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .contract-card.priority-urgent { --prio-color: var(--evora-danger); }
 .contract-card:hover { background: var(--evora-surface-2); border-color: var(--evora-border-strong); }
 .contract-card.is-leaving { opacity: 0; transform: translateY(6px) scale(0.98); pointer-events: none; }
-.contract-card.completed { background: rgba(17, 17, 26, 0.6); }
+.contract-card.completed { background: rgba(var(--evora-surface-rgb), 0.6); }
 
 .cc-avatar {
   display: flex; align-items: center; justify-content: center;
@@ -1261,7 +1182,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .rank-row-bonus { color: var(--evora-text-muted); }
 .rank-row .tag { height: 20px; font-size: 11px; }
 
-.rank-row.is-current { background: var(--evora-tint); box-shadow: inset 0 0 0 1px rgba(134, 115, 206, 0.22); }
+.rank-row.is-current { background: var(--evora-tint); box-shadow: inset 0 0 0 1px rgba(var(--evora-primary-rgb), 0.22); }
 .rank-row.is-current .rank-row-name,
 .rank-row.is-current .rank-row-kills { color: var(--evora-text); }
 .rank-row.is-current .rank-row-bonus { color: var(--evora-lavender); }
@@ -1281,7 +1202,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   display: flex; align-items: center; gap: var(--evora-space-3);
   padding: var(--evora-space-4) 20px;
   border-bottom: 1px solid var(--evora-border);
-  background: rgba(17, 17, 26, 0.6);
+  background: rgba(var(--evora-surface-rgb), 0.6);
   flex-shrink: 0;
 }
 .chat-header-icon {
@@ -1365,7 +1286,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 }
 .bubble-mine {
   background: var(--evora-primary-dark);
-  border: 1px solid rgba(169, 155, 239, 0.22);
+  border: 1px solid rgba(var(--evora-lavender-rgb), 0.22);
   border-bottom-right-radius: var(--evora-radius-xs);
   color: var(--evora-text-on-accent);
 }
@@ -1396,7 +1317,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   display: flex; gap: 10px;
   padding: 14px 20px;
   border-top: 1px solid var(--evora-border);
-  background: rgba(17, 17, 26, 0.6);
+  background: rgba(var(--evora-surface-rgb), 0.6);
   flex-shrink: 0;
 }
 .chat-input-row .input { flex: 1; }
@@ -1438,9 +1359,9 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   pointer-events: all;
   animation: toastIn 320ms var(--evora-ease) backwards;
 }
-.custom-notification.success { --toast-color: var(--evora-success); --toast-tint: rgba(93, 187, 140, 0.14); }
-.custom-notification.warning { --toast-color: var(--evora-warning); --toast-tint: rgba(214, 163, 92, 0.14); }
-.custom-notification.error   { --toast-color: var(--evora-danger);  --toast-tint: rgba(224, 98, 110, 0.14); }
+.custom-notification.success { --toast-color: var(--evora-success); --toast-tint: rgba(var(--evora-success-rgb), 0.14); }
+.custom-notification.warning { --toast-color: var(--evora-warning); --toast-tint: rgba(var(--evora-warning-rgb), 0.14); }
+.custom-notification.error   { --toast-color: var(--evora-danger);  --toast-tint: rgba(var(--evora-danger-rgb), 0.14); }
 .custom-notification.removing { animation: toastOut 280ms ease forwards; }
 
 .custom-notification::before {
@@ -1484,10 +1405,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 ::-webkit-scrollbar-thumb { background: var(--evora-border-strong); border-radius: var(--evora-radius-full); }
 ::-webkit-scrollbar-thumb:hover { background: var(--evora-primary-dark); }
 
-/* Flex/grid children default to min-height:auto, which stops them shrinking
-   below their content and clips lists without a scrollbar. */
+/* Keep wheel scrolling inside lists instead of chaining to the page */
 .contracts-list,
-.player-grid,
 .panel-scroll,
 .stats-panel,
 .chat-messages,
@@ -1497,18 +1416,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
    RESPONSIVE
 ═══════════════════════════════════════════════ */
 
-/* Narrow screens: details + summary stack into one scrolling column */
+/* Narrow screens: contract card actions wrap under the details */
 @media (max-width: 1180px) {
-  .civilian-grid { grid-template-columns: minmax(0, 1fr) 340px; }
-  .civ-side {
-    display: flex; flex-direction: column; gap: var(--evora-space-4);
-    min-height: 0;
-    overflow-y: auto;
-    padding-left: 4px;
-  }
-  .civ-side .panel { flex-shrink: 0; }
-  .civ-side .panel-scroll { flex: none; overflow: visible; }
-
   .contract-card { grid-template-columns: auto minmax(0, 1fr) auto; }
   .contract-card .cc-actions { grid-column: 2 / -1; justify-content: flex-end; }
 }

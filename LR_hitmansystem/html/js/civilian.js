@@ -8,8 +8,6 @@ window.CivilianUI = (() => {
 
   // ─── DOM REFS ──────────────────────────────
   const ui         = () => $('civilian-ui');
-  const playerGrid = () => $('player-grid');
-  const searchIn   = () => $('player-search');
   const targetIdIn = () => $('target-id-input');
   const priceIn    = () => $('contract-price');
   const notesIn    = () => $('contract-notes');
@@ -20,11 +18,12 @@ window.CivilianUI = (() => {
   const SUBMIT_HTML = '<i class="fas fa-paper-plane"></i><span>نشر العقد</span>';
 
   let state = {
-    players:   [],
+    players:   [],     // only used to preview the typed ID — never listed in the UI
     config:    {},
     selected:  null,
     priority:  'normal',
     cooldownTimer: null,
+    lookupTimer:   null,
     previewToken: 0,   // ignores mugshot responses for a superseded selection
   };
 
@@ -35,13 +34,9 @@ window.CivilianUI = (() => {
     resetPreview();
 
     applyConfig(data);
-    $('player-count').textContent = state.players.length;
-    filterPlayers(searchIn().value || '');
 
     // An ID kept from the last session gets a fresh preview (headshots are released on close)
-    const keptId = parseInt(targetIdIn().value);
-    const kept = isNaN(keptId) ? null : state.players.find(x => x.serverId === keptId || x.userId === keptId);
-    if (kept) selectPlayer(kept);
+    lookupTarget(false);
 
     updateCostBreakdown();
     bindEvents();
@@ -95,72 +90,55 @@ window.CivilianUI = (() => {
     return typeof state.config.fee === 'number' ? state.config.fee : 0.1;
   }
 
-  // ─── RENDER PLAYER GRID ─────────────────────
-  function renderPlayers(players) {
-    const grid = playerGrid();
-    grid.innerHTML = '';
-
-    if (!players || players.length === 0) {
-      const searching = (searchIn().value || '').trim() !== '';
-      grid.innerHTML = searching
-        ? emptyState('fas fa-magnifying-glass', 'لا توجد نتائج مطابقة', 'جرّب اسماً أو رقماً آخر')
-        : emptyState('fas fa-user-slash', 'لا يوجد لاعبين متصلين');
-      return;
-    }
-
-    players.forEach((p, i) => {
-      const displayId = p.userId || p.serverId;
-      const name = p.name || 'غير معروف';
-      const initial = (Array.from(name.trim())[0] || '?').toUpperCase();
-
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'player-card' + (p.isSelf ? ' is-self' : '');
-      card.style.animationDelay = Math.min(i * 20, 300) + 'ms';
-      card.dataset.id   = displayId;
-      card.dataset.name = name;
-      card.dataset.sid  = p.serverId; // stable server-id for highlight matching
-      if (state.selected && parseInt(state.selected.serverId) === parseInt(p.serverId)) {
-        card.classList.add('selected');
-      }
-
-      card.innerHTML = `
-        <span class="pc-avatar">${escapeHtml(initial)}</span>
-        <span class="pc-info">
-          <span class="pc-name">${escapeHtml(name)}</span>
-          <span class="pc-id"><span dir="ltr">ID ${escapeHtml(displayId)}</span>${p.isSelf ? '<span class="pc-self">أنت</span>' : ''}</span>
-        </span>
-        <i class="fas fa-circle-check pc-check"></i>`;
-
-      card.addEventListener('click', () => selectPlayer(p));
-      grid.appendChild(card);
-    });
+  // ─── TARGET LOOKUP ──────────────────────────
+  // Mirrors the server: a typed ID is tried as a vRP user ID first, then as a server ID.
+  function findPlayer(id) {
+    return state.players.find(x => x.userId === id)
+        || state.players.find(x => x.serverId === id)
+        || null;
   }
 
-  function filterPlayers(query) {
-    const q = query.toLowerCase().trim();
-    if (!q) {
-      renderPlayers(state.players);
+  const EMPTY_STATES = {
+    idle:    { icon: 'fa-user-plus',  title: 'لم يتم تحديد هدف',             desc: 'أدخل رقم اللاعب لعرض معاينته' },
+    missing: { icon: 'fa-user-slash', title: 'لا يوجد لاعب متصل بهذا الرقم', desc: 'تأكد من الرقم — يجب أن يكون الهدف متصلاً' },
+    self:    { icon: 'fa-ban',        title: 'لا يمكنك وضع عقد على نفسك',    desc: 'أدخل رقم لاعب آخر' },
+  };
+
+  function setEmptyState(kind) {
+    const s = EMPTY_STATES[kind] || EMPTY_STATES.idle;
+    $('target-empty').classList.toggle('is-missing', kind !== 'idle');
+    $('target-empty-icon').className = 'fas ' + s.icon;
+    $('target-empty-title').textContent = s.title;
+    $('target-empty-desc').textContent  = s.desc;
+  }
+
+  // notifyLua: release the previous headshot when the preview goes away
+  function lookupTarget(notifyLua) {
+    const raw = targetIdIn().value.trim();
+    const id  = parseInt(raw);
+    const p   = isNaN(id) ? null : findPlayer(id);
+
+    if (p && !p.isSelf) {
+      if (!state.selected || state.selected.serverId !== p.serverId) selectPlayer(p);
       return;
     }
-    const filtered = state.players.filter(p =>
-      (p.name || '').toLowerCase().includes(q) ||
-      String(p.userId || p.serverId).includes(q)
-    );
-    renderPlayers(filtered);
+
+    if (state.selected) {
+      resetPreview();
+      if (notifyLua) post('stopPedPreview');
+    }
+    setEmptyState(!raw ? 'idle' : (p ? 'self' : 'missing'));
   }
 
   // ─── SELECT PLAYER ──────────────────────────
   function selectPlayer(p) {
     state.selected = p;
     AppState.selectedTarget = p;
-
-    const displayId = p.userId || p.serverId;
-    targetIdIn().value = displayId;
+    setEmptyState('idle');
 
     $('selected-target').classList.remove('hidden');
     $('target-name-display').textContent = p.name || 'غير معروف';
-    $('target-id-display').textContent   = displayId;
+    $('target-id-display').textContent   = p.userId || p.serverId;
 
     // Trigger Mugshot Preview
     const mugshotImg = $('ped-mugshot-img');
@@ -178,14 +156,6 @@ window.CivilianUI = (() => {
         fallback.classList.add('hidden');
       }
     }).catch(() => {});
-
-    document.querySelectorAll('.player-card').forEach(c => {
-      const match = parseInt(c.dataset.sid) === parseInt(p.serverId);
-      c.classList.toggle('selected', match);
-      if (match) c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-
-    updateCostBreakdown();
   }
 
   // Visual reset of the target preview (no NUI callback).
@@ -200,20 +170,14 @@ window.CivilianUI = (() => {
     mugshotImg.removeAttribute('src');
     mugshotImg.classList.add('hidden');
     $('ped-fallback-icon').classList.remove('hidden');
-
-    document.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
-  }
-
-  // Hides the preview; keepInput leaves a manually typed ID in place.
-  function deselect(keepInput) {
-    resetPreview();
-    if (!keepInput) targetIdIn().value = '';
-    post('stopPedPreview');
-    updateCostBreakdown();
   }
 
   function clearTarget() {
-    deselect(false);
+    clearTimeout(state.lookupTimer);
+    resetPreview();
+    targetIdIn().value = '';
+    setEmptyState('idle');
+    post('stopPedPreview');
   }
 
   // ─── COST BREAKDOWN ─────────────────────────
@@ -435,7 +399,6 @@ window.CivilianUI = (() => {
     $('my-contracts-refresh').addEventListener('click', requestMyContracts);
 
     $('clear-target').addEventListener('click', clearTarget);
-    searchIn().addEventListener('input', (e) => filterPlayers(e.target.value));
     priceIn().addEventListener('input', updateCostBreakdown);
 
     if (anonToggle()) {
@@ -444,15 +407,10 @@ window.CivilianUI = (() => {
 
     submitBtn().addEventListener('click', submit);
 
-    targetIdIn().addEventListener('input', (e) => {
-      const id = parseInt(e.target.value);
-      const p = isNaN(id) ? null : state.players.find(x => x.serverId === id || x.userId === id);
-      if (p) {
-        selectPlayer(p);
-      } else if (state.selected) {
-        deselect(true); // typed ID no longer matches the previewed player
-      }
-      updateCostBreakdown();
+    // Debounced so typing an ID doesn't request a headshot per keystroke
+    targetIdIn().addEventListener('input', () => {
+      clearTimeout(state.lookupTimer);
+      state.lookupTimer = setTimeout(() => lookupTarget(true), 250);
     });
 
     // Delegated: priority buttons are rebuilt from config on every open

@@ -50,11 +50,14 @@ local function openNUI(mode, data)
     nuiMode     = mode
     nuiLastPong = GetGameTimer()
 
+    data = data or {}
+    data.theme = Config.UITheme -- UI colors (config.lua)
+
     SetNuiFocus(true, true)
     SendNUIMessage({
         action = "open",
         mode   = mode,
-        data   = data or {}
+        data   = data
     })
     debugLog("NUI opened in mode: " .. mode)
 end
@@ -69,6 +72,12 @@ local function closeNUI()
     SendNUIMessage({ action = "close" })
     debugLog("NUI closed")
 end
+
+-- The page requests the UI colors once it loads, so notifications are
+-- themed even before a window has been opened.
+RegisterNUICallback('nuiReady', function(data, cb)
+    cb({ theme = Config.UITheme })
+end)
 
 -- Backup: __cfx_nui:closeUI via NuiFocusReleased (fires when user presses Escape while NUI has focus)
 RegisterNUICallback('focusReleased', function(data, cb)
